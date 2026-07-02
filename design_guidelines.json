@@ -1,0 +1,159 @@
+{
+  "app_name": "Ace",
+  "personality": "3 Editorial Mobile",
+  "personality_one_liner": "A premium, restorative sanctuary that feels more like an elegant lifestyle magazine than a clinical booking tool.",
+  "color": {
+    "surface": "#FDFDFB",
+    "onSurface": "#181C18",
+    "surfaceSecondary": "#F3F4EF",
+    "onSurfaceSecondary": "#333A33",
+    "surfaceTertiary": "#E7EAE1",
+    "onSurfaceTertiary": "#4F594F",
+    "surfaceInverse": "#1C261C",
+    "onSurfaceInverse": "#FDFDFB",
+    "brand": "#213621",
+    "brandPrimary": "#213621",
+    "onBrandPrimary": "#FDFDFB",
+    "brandSecondary": "#466346",
+    "onBrandSecondary": "#FDFDFB",
+    "brandTertiary": "#DCE3D3",
+    "onBrandTertiary": "#181C18",
+    "success": "#365936",
+    "onSuccess": "#FFFFFF",
+    "warning": "#C28327",
+    "onWarning": "#FFFFFF",
+    "error": "#8C3333",
+    "onError": "#FFFFFF",
+    "border": "#E7EAE1",
+    "borderStrong": "#A6B3A6",
+    "divider": "#E7EAE1"
+  },
+  "typography": {
+    "displayFontFamily": "Cormorant Garamond",
+    "textFontFamily": "Satoshi",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Magazine-like spacing rhythms with generous vertical breathing room. Let typography and whitespace carry the hierarchy. No dense card-heavy layouts.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 0,
+    "md": 4,
+    "lg": 8,
+    "pill": 999
+  },
+  "shadow_tier": "0",
+  "navigation": "bottom_tabs",
+  "icon_set": "Feather",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": [
+      "Use solid surface or surfaceSecondary for all elevated surfaces",
+      "Rely on spacing and subtle dividers rather than blur"
+    ],
+    "dont's": [
+      "No glass effects. The editorial personality relies on matte, paper-like surfaces and stark contrasts."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "solid surfaceSecondary",
+      "android": "solid surfaceSecondary",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Home",
+      "purpose": "A calming discovery feed showcasing today's schedule and inviting users to book their next session.",
+      "states": {
+        "loading": "Centered minimal spinner with subtle breathing animation.",
+        "empty": "N/A - Admin managed content, assuming content exists.",
+        "error": "Elegant text message 'Unable to load studio schedule' with a simple 'Refresh' text button."
+      },
+      "layout": "Header with simple text greeting ('Good Morning'). Two large, edge-to-edge or generously padded hero cards stacked vertically for 'Pilates Classes' and 'Physiotherapy'. These cards must use the real photos with a gradient-to-dark scrim (top-to-bottom) and elegant serif text overlaid at the bottom left. Below, a horizontal scrolling list of 'Our Specialists' (circular avatars)."
+    },
+    {
+      "name": "Browse Schedule",
+      "purpose": "A clean, easily scannable calendar view to find and book available Pilates classes or Physio slots.",
+      "states": {
+        "loading": "Skeleton rows reflecting the list layout.",
+        "empty": "Calm leaf illustration. Text: 'No sessions available for this date.'",
+        "error": "Simple text message + retry."
+      },
+      "layout": "Top section: A segmented control or simple text-based chip row (Physio vs Pilates) using brandTertiary for active state. Below: A horizontal scrolling date picker (Day/Date). Body: Vertical list of available sessions. Each row has generous padding, separated by 0.5pt dividers (no cards/shadows). Shows time, session name, instructor, and a subtle 'Book' CTA."
+    },
+    {
+      "name": "Booking Detail Sheet",
+      "purpose": "A focused, distraction-free confirmation step for booking.",
+      "states": {
+        "loading": "Inline loading on the CTA button.",
+        "empty": "N/A",
+        "error": "Inline red text above the CTA."
+      },
+      "layout": "Opens as a bottom sheet. Top half shows session details with an elegant serif headline. Middle section shows Instructor profile snippet and Cancellation policy. Bottom is a sticky primary CTA 'Confirm Booking' floating above safe area. Background is solid surface."
+    },
+    {
+      "name": "My Bookings",
+      "purpose": "Overview of user's commitments with options to manage them.",
+      "states": {
+        "loading": "Skeleton rows.",
+        "empty": "Large calm leaf illustration. 'No upcoming sessions. Take time for your body.'",
+        "error": "Simple text message + retry."
+      },
+      "layout": "Top tabs: 'Upcoming' / 'Past'. Clean vertical list. Each booking is a distinct block with a surfaceSecondary background, sharp corners (md radius), displaying date, time, type. Includes subtle secondary buttons to 'Reschedule' or 'Cancel'."
+    },
+    {
+      "name": "Therapist Profile",
+      "purpose": "Builds trust and highlights the expertise of the staff member.",
+      "states": {
+        "loading": "Skeleton UI.",
+        "empty": "N/A",
+        "error": "Simple text message + retry."
+      },
+      "layout": "Hero image at the top (therapist photo or studio shot), 30% screen height. Clean white surface overlapping it with the therapist's name (Display Serif) and specialties. Generous reading width for the bio. Below the bio, a list of their immediate available slots."
+    }
+  ],
+  "images": {
+    "home_pilates_hero": {
+      "url": "https://images.pexels.com/photos/25596894/pexels-photo-25596894.jpeg",
+      "alt": "Minimalist pilates studio with reformers"
+    },
+    "home_physio_hero": {
+      "url": "https://images.pexels.com/photos/20860588/pexels-photo-20860588.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Physiotherapist assisting patient"
+    },
+    "empty_state_illustration": {
+      "url": "https://images.unsplash.com/photo-1599332470261-61f657e5d9cc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHwxfHxjYWxtJTIwbWluaW1hbGlzdCUyMG5hdHVyZSUyMGdyZWVuJTIwbGVhZnxlbnwwfHx8fDE3ODE5NDEyODF8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Calm minimalist green leaves in a dark room"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the 'Editorial Mobile' personality. The app should look like a high-end wellness magazine, not a generic SaaS booking tool.",
+    "Use Cormorant Garamond for all headings/titles and Satoshi for all body/UI text. Do not use weights above 500.",
+    "Avoid shadows and blur/glassmorphism entirely. Use flat surfaces (surface and surfaceSecondary) and clean 0.5pt dividers to create hierarchy.",
+    "Whenever text is placed on top of hero images (e.g., Home screen cards), a vertical gradient scrim MUST be applied (transparent to >=70% surfaceInverse) to ensure text contrast.",
+    "Maintain generous padding (xl/2xl) around content blocks. Do not cram elements together.",
+    "The primary action buttons (like 'Confirm Booking') must be sticky at the bottom, placed inside a KeyboardAvoidingView/SafeAreaView, and easily reachable by the thumb.",
+    "Ensure My Bookings empty state uses the provided calm leaf image covering a generous portion of the screen with elegant text.",
+    "Do not use emojis anywhere in the UI."
+  ]
+}
