@@ -1,0 +1,32 @@
+{
+  "summary": "FisioPilates MVP tested end-to-end. Backend: 32/32 pytest tests passed (auth, RBAC, patients CRUD w/ login creation, anamnese, evolutions, assessments, appointments w/ 12h rule + conflict, attendance summary, exercises, notes, payments, notifications, dashboards, procedures). Frontend admin flow on wide viewport (1280x900): sidebar renders (no bottom tabs), demo login works, dashboard shows KPIs (3 hoje/1 confirmado/5 pacientes/3 pagamentos pendentes) with área chips, próximos atendimentos, Pacientes list w/ search + área filters, Patient detail with 8 tabs (Dados/Anamnese/Evoluções/Avaliações/Exercícios/Orientações/Pagamentos/Presença), Agenda Dia/Semana/Mês with appointments per status, Pagamentos with status/área filters and 'Total em aberto R$ 1.170,00' + Marcar como pago, Configurações with procedure list. Frontend patient flow on narrow viewport (390x844): bottom tab bar renders (no sidebar), dashboard shows próximo atendimento card (Confirmado 10/08/2026 09:00), 2 exercícios ativos / 1 pagam. pendente, booking wizard step 1/3 with procedures list, Histórico segmented (Atendimentos/Pagamentos/Orientações) with cancelar buttons, Exercícios list with active exercises. 12h rule validated at API (patients get 400 w/ Portuguese message; admins bypass). Portuguese locale, R$ currency, DD/MM/AAAA dates, 24h times all rendering correctly. Only minor react-native-web console deprecation warnings ('shadow*' style props) — non-blocking.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "global (all screens)", "issues": ["react-native-web deprecation warning in console: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' — appears twice per navigation. Recommend migrating StyleSheet shadow props (shadowColor/shadowOffset/shadowOpacity/shadowRadius) to the new boxShadow syntax for RN 0.76+/web compatibility."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Optional cleanup) Replace deprecated shadow* style props with boxShadow across StyleSheet.create blocks to silence react-native-web warning (non-blocking)."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 979 lines — consider splitting into routers/models modules if it grows further (currently acceptable).",
+    "12h rule uses naive datetime.now() while stored appointments use dt.isoformat() from naive combine — consistent between create/read paths; OK but be mindful if server timezone differs from clinic TZ (America/Sao_Paulo).",
+    "Password reset endpoint is a no-op ({'implemented': False}) — flagged as expected for MVP.",
+    "All endpoints exclude _id from Mongo responses correctly. JWT excludes password_hash from /auth/me and login payloads. RBAC enforced on evolutions, patients list, and admin routes."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py (new)"],
+  "success_rate": {"backend": "100% (32/32)", "frontend": "100% of critical flows tested visually"},
+  "seed_data_creation": "No new seed data. Backend startup already seeds via meta.demo_seeded_v3 (5 patients, 9 procedures, 8 appointments, assessments/evolutions/exercises/payments, 2 notifications). Tests created transient TEST_-prefixed rows and cleaned them up.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend base: EXPO_PUBLIC_BACKEND_URL + /api. Demo creds in /app/memory/test_credentials.md. Pytest suite at /app/backend/tests/backend_test.py runs all critical paths in <10s. TestIDs used: demo-fill-<email>, login-submit-button, sidebar-<key>, tab-<key>. For frontend, use wide viewport (>=900px) to render admin sidebar and narrow (<900px) to render bottom tabs. Seed flag key is demo_seeded_v3.",
+  "rca_of_issue": "No blocking issues found. MVP is functional end-to-end."
+}

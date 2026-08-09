@@ -1,30 +1,31 @@
-import { Platform } from "react-native";
-
+// Light-first tokens from design_guidelines.json (Sage/Mint professional palette)
 export const colors = {
-  surface: "#FDFDFB",
-  onSurface: "#181C18",
-  surfaceSecondary: "#F3F4EF",
-  onSurfaceSecondary: "#333A33",
-  surfaceTertiary: "#E7EAE1",
-  onSurfaceTertiary: "#4F594F",
-  surfaceInverse: "#1C261C",
-  onSurfaceInverse: "#FDFDFB",
-  brand: "#213621",
-  brandPrimary: "#213621",
-  onBrandPrimary: "#FDFDFB",
-  brandSecondary: "#466346",
-  onBrandSecondary: "#FDFDFB",
-  brandTertiary: "#DCE3D3",
-  onBrandTertiary: "#181C18",
-  success: "#365936",
+  surface: "#F9FAFA",
+  onSurface: "#181C1A",
+  surfaceSecondary: "#FFFFFF",
+  onSurfaceSecondary: "#24332B",
+  surfaceTertiary: "#F0F4F2",
+  onSurfaceTertiary: "#374D41",
+  surfaceInverse: "#181C1A",
+  onSurfaceInverse: "#FFFFFF",
+  brand: "#426B57",
+  brandPrimary: "#426B57",
+  onBrandPrimary: "#FFFFFF",
+  brandSecondary: "#C1D6CB",
+  onBrandSecondary: "#24332B",
+  brandTertiary: "#E2EDE7",
+  onBrandTertiary: "#426B57",
+  success: "#2F7A59",
   onSuccess: "#FFFFFF",
-  warning: "#C28327",
+  warning: "#B37A2C",
   onWarning: "#FFFFFF",
-  error: "#8C3333",
+  error: "#B84B4B",
   onError: "#FFFFFF",
-  border: "#E7EAE1",
-  borderStrong: "#A6B3A6",
-  divider: "#E7EAE1",
+  info: "#5C6B64",
+  onInfo: "#FFFFFF",
+  border: "#E2E8E4",
+  borderStrong: "#A8BDB1",
+  divider: "#EBF0ED",
 };
 
 export const spacing = {
@@ -38,40 +39,45 @@ export const spacing = {
 };
 
 export const radii = {
-  sm: 0,
-  md: 4,
-  lg: 8,
+  sm: 6,
+  md: 12,
+  lg: 20,
   pill: 999,
 };
 
-// Editorial serif fallback (no @expo-google-fonts allowed per environment rules)
-export const fonts = {
-  serif: Platform.select({ ios: "Georgia", android: "serif", default: "serif" }) as string,
-  serifItalic: Platform.select({ ios: "Georgia-Italic", android: "serif", default: "serif" }) as string,
-  body: Platform.select({ ios: "System", android: "sans-serif", default: "System" }) as string,
-};
-
-export const type = {
-  displayXL: { fontFamily: fonts.serif, fontSize: 34, lineHeight: 40, color: colors.onSurface },
-  displayLG: { fontFamily: fonts.serif, fontSize: 28, lineHeight: 34, color: colors.onSurface },
-  displayMD: { fontFamily: fonts.serif, fontSize: 22, lineHeight: 28, color: colors.onSurface },
-  overline: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    letterSpacing: 2,
-    textTransform: "uppercase" as const,
-    color: colors.onSurfaceTertiary,
+export const shadow = {
+  card: {
+    shadowColor: "#0A1F16",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: colors.onSurface },
-  bodySm: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.onSurfaceSecondary },
-  label: { fontFamily: fonts.body, fontSize: 13, letterSpacing: 0.5, color: colors.onSurface },
 };
 
 export const images = {
-  homePilates:
-    "https://images.pexels.com/photos/25596894/pexels-photo-25596894.jpeg",
-  homePhysio:
-    "https://images.pexels.com/photos/20860588/pexels-photo-20860588.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-  emptyLeaf:
-    "https://images.unsplash.com/photo-1599332470261-61f657e5d9cc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHwxfHxjYWxtJTIwbWluaW1hbGlzdCUyMG5hdHVyZSUyMGdyZWVuJTIwbGVhZnxlbnwwfHx8fDE3ODE5NDEyODF8MA&ixlib=rb-4.1.0&q=85",
+  heroPilates: "https://images.pexels.com/photos/11036674/pexels-photo-11036674.jpeg",
+  heroPhysio: "https://images.pexels.com/photos/20860597/pexels-photo-20860597.jpeg",
+  patientHero: "https://images.pexels.com/photos/20860586/pexels-photo-20860586.jpeg",
+};
+
+export const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
+  agendado: { bg: "#E2EDE7", fg: "#426B57", label: "Agendado" },
+  confirmado: { bg: "#DCEBF5", fg: "#2C5B7A", label: "Confirmado" },
+  presente: { bg: "#D6F0E2", fg: "#2F7A59", label: "Presente" },
+  faltou: { bg: "#F5DCDC", fg: "#B84B4B", label: "Faltou" },
+  cancelado: { bg: "#ECECEC", fg: "#6B6B6B", label: "Cancelado" },
+  remarcado: { bg: "#F5EBD6", fg: "#B37A2C", label: "Remarcado" },
+};
+
+export const payStatusColors: Record<string, { bg: string; fg: string; label: string }> = {
+  pago: { bg: "#D6F0E2", fg: "#2F7A59", label: "Pago" },
+  pendente: { bg: "#F5EBD6", fg: "#B37A2C", label: "Pendente" },
+  atrasado: { bg: "#F5DCDC", fg: "#B84B4B", label: "Atrasado" },
+};
+
+export const areaLabel: Record<string, string> = {
+  fisio: "Fisioterapia",
+  pilates: "Pilates",
+  ambos: "Ambos",
 };
