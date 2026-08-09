@@ -1,36 +1,38 @@
 {
-  "app_name": "Ace",
-  "personality": "3 Editorial Mobile",
-  "personality_one_liner": "A premium, restorative sanctuary that feels more like an elegant lifestyle magazine than a clinical booking tool.",
+  "app_name": "FisioPilates Clinic",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A calming, modern, and professional healthcare ecosystem that balances clinical efficiency with patient wellness.",
   "color": {
-    "surface": "#FDFDFB",
-    "onSurface": "#181C18",
-    "surfaceSecondary": "#F3F4EF",
-    "onSurfaceSecondary": "#333A33",
-    "surfaceTertiary": "#E7EAE1",
-    "onSurfaceTertiary": "#4F594F",
-    "surfaceInverse": "#1C261C",
-    "onSurfaceInverse": "#FDFDFB",
-    "brand": "#213621",
-    "brandPrimary": "#213621",
-    "onBrandPrimary": "#FDFDFB",
-    "brandSecondary": "#466346",
-    "onBrandSecondary": "#FDFDFB",
-    "brandTertiary": "#DCE3D3",
-    "onBrandTertiary": "#181C18",
-    "success": "#365936",
-    "onSuccess": "#FFFFFF",
-    "warning": "#C28327",
-    "onWarning": "#FFFFFF",
-    "error": "#8C3333",
-    "onError": "#FFFFFF",
-    "border": "#E7EAE1",
-    "borderStrong": "#A6B3A6",
-    "divider": "#E7EAE1"
+    "surface": { "light": "#F9FAFA", "dark": "#121614" },
+    "onSurface": { "light": "#181C1A", "dark": "#E9ECEB" },
+    "surfaceSecondary": { "light": "#FFFFFF", "dark": "#1C221F" },
+    "onSurfaceSecondary": { "light": "#24332B", "dark": "#D1D8D4" },
+    "surfaceTertiary": { "light": "#F0F4F2", "dark": "#252D29" },
+    "onSurfaceTertiary": { "light": "#374D41", "dark": "#A9B6AF" },
+    "surfaceInverse": { "light": "#181C1A", "dark": "#E9ECEB" },
+    "onSurfaceInverse": { "light": "#FFFFFF", "dark": "#121614" },
+    "brand": { "light": "#426B57", "dark": "#6BA88D" },
+    "brandPrimary": { "light": "#426B57", "dark": "#6BA88D" },
+    "onBrandPrimary": { "light": "#FFFFFF", "dark": "#0D1C15" },
+    "brandSecondary": { "light": "#C1D6CB", "dark": "#355243" },
+    "onBrandSecondary": { "light": "#24332B", "dark": "#DDEBE4" },
+    "brandTertiary": { "light": "#E2EDE7", "dark": "#1F3329" },
+    "onBrandTertiary": { "light": "#426B57", "dark": "#6BA88D" },
+    "success": { "light": "#2F7A59", "dark": "#4BA87E" },
+    "onSuccess": { "light": "#FFFFFF", "dark": "#0A2417" },
+    "warning": { "light": "#B37A2C", "dark": "#D49B48" },
+    "onWarning": { "light": "#FFFFFF", "dark": "#2E1D05" },
+    "error": { "light": "#B84B4B", "dark": "#D96868" },
+    "onError": { "light": "#FFFFFF", "dark": "#330F0F" },
+    "info": { "light": "#5C6B64", "dark": "#8A9C93" },
+    "onInfo": { "light": "#FFFFFF", "dark": "#161C19" },
+    "border": { "light": "#E2E8E4", "dark": "#2E3833" },
+    "borderStrong": { "light": "#A8BDB1", "dark": "#475951" },
+    "divider": { "light": "#EBF0ED", "dark": "#212925" }
   },
   "typography": {
-    "displayFontFamily": "Cormorant Garamond",
-    "textFontFamily": "Satoshi",
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Geist",
     "scale": {
       "sm": 12,
       "base": 14,
@@ -40,7 +42,7 @@
     }
   },
   "spacing": {
-    "rule": "Magazine-like spacing rhythms with generous vertical breathing room. Let typography and whitespace carry the hierarchy. No dense card-heavy layouts.",
+    "rule": "Generous vertical breathing room for iOS-Native Clean. Cards never flush to screen edges. Padding is intentional and consistent.",
     "xs": 4,
     "sm": 8,
     "md": 12,
@@ -50,28 +52,30 @@
     "3xl": 48
   },
   "radius_tokens": {
-    "sm": 0,
-    "md": 4,
-    "lg": 8,
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
     "pill": 999
   },
-  "shadow_tier": "0",
-  "navigation": "bottom_tabs",
-  "icon_set": "Feather",
+  "shadow_tier": 1,
+  "navigation": "drawer",
+  "icon_set": "Phosphor",
   "glassmorphism": {
-    "enabled": false,
+    "enabled": true,
     "do's": [
-      "Use solid surface or surfaceSecondary for all elevated surfaces",
-      "Rely on spacing and subtle dividers rather than blur"
+      "Use glass on sticky headers over scrolling clinical data.",
+      "Use glass on bottom sheet handles for patient records.",
+      "Use glass overlay on the hero image of the Patient Dashboard."
     ],
     "dont's": [
-      "No glass effects. The editorial personality relies on matte, paper-like surfaces and stark contrasts."
+      "Do not use glass on form inputs or dense data tables.",
+      "Do not blur entire screens."
     ]
   },
   "platform_libraries": {
     "glass": {
-      "ios": "solid surfaceSecondary",
-      "android": "solid surfaceSecondary",
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
       "low_end_android_fallback": "solid surfaceSecondary"
     },
     "image": "expo-image",
@@ -80,80 +84,168 @@
     "animation": "react-native-reanimated",
     "gesture": "react-native-gesture-handler"
   },
+  "haptics": {
+    "events": {
+      "primary_button_press": "impactLight",
+      "tab_change": "selection",
+      "appointment_booked": "notificationSuccess",
+      "chart_interaction": "selection"
+    }
+  },
   "screens": [
     {
-      "name": "Home",
-      "purpose": "A calming discovery feed showcasing today's schedule and inviting users to book their next session.",
+      "name": "Login",
+      "purpose": "Role-based authentication entry point (Admin Fisio, Admin Pilates, Patient).",
       "states": {
-        "loading": "Centered minimal spinner with subtle breathing animation.",
-        "empty": "N/A - Admin managed content, assuming content exists.",
-        "error": "Elegant text message 'Unable to load studio schedule' with a simple 'Refresh' text button."
-      },
-      "layout": "Header with simple text greeting ('Good Morning'). Two large, edge-to-edge or generously padded hero cards stacked vertically for 'Pilates Classes' and 'Physiotherapy'. These cards must use the real photos with a gradient-to-dark scrim (top-to-bottom) and elegant serif text overlaid at the bottom left. Below, a horizontal scrolling list of 'Our Specialists' (circular avatars)."
-    },
-    {
-      "name": "Browse Schedule",
-      "purpose": "A clean, easily scannable calendar view to find and book available Pilates classes or Physio slots.",
-      "states": {
-        "loading": "Skeleton rows reflecting the list layout.",
-        "empty": "Calm leaf illustration. Text: 'No sessions available for this date.'",
-        "error": "Simple text message + retry."
-      },
-      "layout": "Top section: A segmented control or simple text-based chip row (Physio vs Pilates) using brandTertiary for active state. Below: A horizontal scrolling date picker (Day/Date). Body: Vertical list of available sessions. Each row has generous padding, separated by 0.5pt dividers (no cards/shadows). Shows time, session name, instructor, and a subtle 'Book' CTA."
-    },
-    {
-      "name": "Booking Detail Sheet",
-      "purpose": "A focused, distraction-free confirmation step for booking.",
-      "states": {
-        "loading": "Inline loading on the CTA button.",
+        "loading": "Centered spinner while authenticating.",
         "empty": "N/A",
-        "error": "Inline red text above the CTA."
+        "error": "Error toast for invalid credentials."
       },
-      "layout": "Opens as a bottom sheet. Top half shows session details with an elegant serif headline. Middle section shows Instructor profile snippet and Cancellation policy. Bottom is a sticky primary CTA 'Confirm Booking' floating above safe area. Background is solid surface."
+      "layout": "Clean split screen on web; full screen centered card on mobile. Features email/password inputs and a forgotten password link."
     },
     {
-      "name": "My Bookings",
-      "purpose": "Overview of user's commitments with options to manage them.",
+      "name": "Admin Dashboard",
+      "purpose": "High-level overview of daily clinic operations and key KPIs.",
       "states": {
-        "loading": "Skeleton rows.",
-        "empty": "Large calm leaf illustration. 'No upcoming sessions. Take time for your body.'",
-        "error": "Simple text message + retry."
+        "loading": "Skeleton loaders for KPI cards.",
+        "empty": "Illustration indicating no data for today.",
+        "error": "Retry button if KPI fetch fails."
       },
-      "layout": "Top tabs: 'Upcoming' / 'Past'. Clean vertical list. Each booking is a distinct block with a surfaceSecondary background, sharp corners (md radius), displaying date, time, type. Includes subtle secondary buttons to 'Reschedule' or 'Cancel'."
+      "layout": "Grid of KPI cards (today's appointments, no-shows, pending payments) followed by a quick-list of the next 3 upcoming appointments. Chip filters for Todos/Fisio/Pilates."
     },
     {
-      "name": "Therapist Profile",
-      "purpose": "Builds trust and highlights the expertise of the staff member.",
+      "name": "Agenda",
+      "purpose": "Full calendar view for scheduling and managing daily appointments.",
       "states": {
-        "loading": "Skeleton UI.",
+        "loading": "Skeleton blocks for time slots.",
+        "empty": "Illustration showing a clear schedule.",
+        "error": "Retry state to reload calendar data."
+      },
+      "layout": "Modern calendar with Day/Week/Month toggle. Appointments displayed as color-coded cards (by status/type) with doctor and patient details. Includes quick-mark attendance actions."
+    },
+    {
+      "name": "Patient List",
+      "purpose": "Directory of all registered patients with quick search and filter.",
+      "states": {
+        "loading": "Skeleton list rows.",
+        "empty": "No patients found illustration.",
+        "error": "Retry fetching patients list."
+      },
+      "layout": "Search bar at the top, followed by a vertically scrolling list of patient cards. Each card shows avatar (initials or photo), name, and last appointment date."
+    },
+    {
+      "name": "Patient Detail",
+      "purpose": "Comprehensive patient medical record with tabbed navigation.",
+      "states": {
+        "loading": "Skeleton loaders for patient header and active tab content.",
+        "empty": "Empty state illustration specific to the active tab.",
+        "error": "Retry button for patient data."
+      },
+      "layout": "Top section features patient info summary. Below is a scrollable horizontal tab bar (Personal, Anamnese, Evoluções, Avaliações, Exercícios, Pagamentos, Presença). Content swaps below based on active tab."
+    },
+    {
+      "name": "Anamnese Form",
+      "purpose": "Form to capture patient medical history and initial assessment.",
+      "states": {
+        "loading": "Form skeleton.",
         "empty": "N/A",
-        "error": "Simple text message + retry."
+        "error": "Validation error text under specific fields."
       },
-      "layout": "Hero image at the top (therapist photo or studio shot), 30% screen height. Clean white surface overlapping it with the therapist's name (Display Serif) and specialties. Generous reading width for the bio. Below the bio, a list of their immediate available slots."
+      "layout": "Single column form with clear labels above inputs. Sticky Submit CTA at the bottom inside KeyboardAvoidingView."
+    },
+    {
+      "name": "Nova Evolução Form",
+      "purpose": "Clinical evolution entry for professionals to track session progress.",
+      "states": {
+        "loading": "Form skeleton.",
+        "empty": "N/A",
+        "error": "Validation error messages."
+      },
+      "layout": "Rich text input for session notes, accompanied by sliders/inputs for Pain (0-10) and ROM."
+    },
+    {
+      "name": "Avaliação Chart",
+      "purpose": "Visual representation of patient progress over time.",
+      "states": {
+        "loading": "Chart skeleton.",
+        "empty": "No evaluations recorded yet.",
+        "error": "Failed to load chart data."
+      },
+      "layout": "Line charts displaying Pain (0-10) and Range of Motion trends over time. Clean axes and data points."
+    },
+    {
+      "name": "Exercises Editor",
+      "purpose": "Admin tool to prescribe and manage home exercises for a patient.",
+      "states": {
+        "loading": "Skeleton exercise list.",
+        "empty": "No exercises prescribed illustration.",
+        "error": "Retry fetching exercises."
+      },
+      "layout": "List of currently prescribed exercises with edit/remove actions. Floating Action Button (FAB) to add a new exercise."
+    },
+    {
+      "name": "Pagamentos List",
+      "purpose": "Track financial status and pending payments for a specific patient.",
+      "states": {
+        "loading": "Skeleton list.",
+        "empty": "No pending payments.",
+        "error": "Failed to load payment history."
+      },
+      "layout": "List of invoices/payments. Status tags (Paid, Pending, Overdue) using standard status colors."
+    },
+    {
+      "name": "Patient Dashboard",
+      "purpose": "B2C view for patients to see their upcoming appointments, home exercises, and history.",
+      "states": {
+        "loading": "Skeleton cards.",
+        "empty": "Welcome state for new patients.",
+        "error": "Retry loading patient data."
+      },
+      "layout": "Hero image card with glassmorphism overlay greeting the patient. Below, sections for 'Next Appointment' and 'Home Exercises'. Bottom tabs navigation on mobile."
+    },
+    {
+      "name": "Patient Booking Flow",
+      "purpose": "Wizard for patients to book a new appointment (12h advance rule).",
+      "states": {
+        "loading": "Loading available slots.",
+        "empty": "No slots available for selected date.",
+        "error": "Failed to confirm booking."
+      },
+      "layout": "Step-by-step wizard: Select Service (Fisio/Pilates) -> Select Date -> Select Time Slot -> Confirm. Sticky Continue CTA."
+    },
+    {
+      "name": "Notifications",
+      "purpose": "In-app alerts for reminders, payment dues, and clinic updates.",
+      "states": {
+        "loading": "Skeleton list.",
+        "empty": "All caught up illustration.",
+        "error": "Failed to load notifications."
+      },
+      "layout": "Simple vertical list of notification items with unread dots. Swipe to dismiss."
     }
   ],
   "images": {
-    "home_pilates_hero": {
-      "url": "https://images.pexels.com/photos/25596894/pexels-photo-25596894.jpeg",
-      "alt": "Minimalist pilates studio with reformers"
+    "hero_pilates": {
+      "url": "https://images.pexels.com/photos/11036674/pexels-photo-11036674.jpeg",
+      "alt": "Modern, bright Pilates studio"
     },
-    "home_physio_hero": {
-      "url": "https://images.pexels.com/photos/20860588/pexels-photo-20860588.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-      "alt": "Physiotherapist assisting patient"
+    "hero_physio": {
+      "url": "https://images.pexels.com/photos/20860597/pexels-photo-20860597.jpeg",
+      "alt": "Professional modern physiotherapy session"
     },
-    "empty_state_illustration": {
-      "url": "https://images.unsplash.com/photo-1599332470261-61f657e5d9cc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHwxfHxjYWxtJTIwbWluaW1hbGlzdCUyMG5hdHVyZSUyMGdyZWVuJTIwbGVhZnxlbnwwfHx8fDE3ODE5NDEyODF8MA&ixlib=rb-4.1.0&q=85",
-      "alt": "Calm minimalist green leaves in a dark room"
+    "patient_dashboard_hero": {
+      "url": "https://images.pexels.com/photos/20860586/pexels-photo-20860586.jpeg",
+      "alt": "Physiotherapist consulting with a patient"
     }
   },
   "instructions_to_main_agent": [
-    "Strictly follow the 'Editorial Mobile' personality. The app should look like a high-end wellness magazine, not a generic SaaS booking tool.",
-    "Use Cormorant Garamond for all headings/titles and Satoshi for all body/UI text. Do not use weights above 500.",
-    "Avoid shadows and blur/glassmorphism entirely. Use flat surfaces (surface and surfaceSecondary) and clean 0.5pt dividers to create hierarchy.",
-    "Whenever text is placed on top of hero images (e.g., Home screen cards), a vertical gradient scrim MUST be applied (transparent to >=70% surfaceInverse) to ensure text contrast.",
-    "Maintain generous padding (xl/2xl) around content blocks. Do not cram elements together.",
-    "The primary action buttons (like 'Confirm Booking') must be sticky at the bottom, placed inside a KeyboardAvoidingView/SafeAreaView, and easily reachable by the thumb.",
-    "Ensure My Bookings empty state uses the provided calm leaf image covering a generous portion of the screen with elegant text.",
-    "Do not use emojis anywhere in the UI."
+    "CRITICAL RESPONSIVENESS: Ensure responsive navigation using 'react-native-web'. When screen width > 768px, render a persistent left Sidebar (Drawer) with the 10 admin menu items. On mobile, use a Bottom Tab bar for primary navigation and a hamburger menu in the header for secondary routes.",
+    "Do NOT use generic purple/blue colors. Stick strictly to the calming Sage/Mint green palette provided in the tokens to maintain a professional, non-hospital wellness aesthetic.",
+    "Use Phosphor icons consistently with filled styles for active states and outlined styles for inactive states.",
+    "For the calendar, ensure appointment cards are distinct, properly padded, and utilize the 'brandTertiary' and 'status' tokens for clear visual hierarchy without overwhelming the user.",
+    "Any text overlaid on 'hero_pilates', 'hero_physio', or 'patient_dashboard_hero' MUST include a top-to-bottom linear gradient scrim (transparent to surfaceInverse at ≥70% opacity) behind the text to ensure WCAG readability.",
+    "Patient Avatars should use Initials in a rounded 'brandTertiary' container if no real photo is uploaded.",
+    "Ensure all primary Call-to-Action (CTA) buttons are sticky at the bottom of scrolling forms, protected by SafeAreaView and KeyboardAvoidingView.",
+    "Never exceed 500 font weight for any text element. Use font size to establish hierarchy."
   ]
 }
