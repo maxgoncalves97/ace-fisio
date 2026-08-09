@@ -13,6 +13,7 @@
       "bundleIdentifier": "com.emergent.acescheduler.b2krn1"
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
