@@ -6,6 +6,16 @@ MongoDB remains on the existing Atlas cluster, using `ace_fisio_partner_demo`.
 
 ## Deploy
 
+For assisted deployment, create a Render API key in account settings and save it
+locally as `RENDER_API_KEY` in ignored `backend/.env.render`. Then the helper
+`backend/venv/Scripts/python.exe backend/render_preview.py --create` provisions
+only the named free service and supplies existing backend secrets directly to
+Render. Without `--create` it reports status only; `--deploy` requests a rebuild
+of the matching free preview. It refuses to change unrelated or paid services.
+Revoke the temporary API key in Render after assisted setup is complete.
+
+For manual dashboard deployment:
+
 1. Sign in at https://dashboard.render.com and connect this GitHub repository.
 2. Create a Blueprint from the branch containing `render.yaml` (or create a Web
    Service with Docker runtime, repository root directory, and the **Free** instance).
