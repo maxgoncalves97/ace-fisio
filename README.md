@@ -1,5 +1,9 @@
 # ACE Fisio
 
+**Returning later? Read [START_HERE.md](START_HERE.md)** for the saved free Render
+setup, live phone-testing link, account/password locations, local test commands,
+and steps to resume development and deployment.
+
 Brand colours and logo assets follow the supplied ACE green-and-white reference.
 See [BRANDING.md](BRANDING.md) for the palette and asset regeneration command.
 
