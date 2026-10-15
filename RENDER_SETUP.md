@@ -1,5 +1,27 @@
 # Free partner preview on Render
 
+## Current deployment status (16 October 2026)
+
+The free service `srv-db8m230473hc73alum10` has been created at
+https://ace-fisio-partner-demo.onrender.com. Its first Linux Docker build passed,
+but application startup failed because the Atlas TLS connection was rejected.
+The same saved MongoDB connection works from the development computer. Atlas
+network access is the likely cause; this has not yet been verified by changing
+the access list. The preview is **not yet ready for partner testing**.
+
+Render reports these outbound network ranges for this service:
+
+- `74.220.49.0/24`
+- `74.220.57.0/24`
+
+Add those separately to the existing Atlas project's Network Access list, retaining
+existing entries. Then run `backend/venv/Scripts/python.exe backend/render_preview.py
+--deploy`, wait for a live deployment, and run `backend/venv/Scripts/python.exe
+backend/check_remote.py`. These are shared Render ranges, not dedicated IPs.
+Use `render_preview.py --network` to retrieve current ranges, `--logs` for
+redacted recent logs. Existing Atlas credentials do not grant Atlas administration
+access; adding the access-list entries requires the Atlas account owner.
+
 The repository includes one Docker web service, explicitly `plan: free` in
 `render.yaml`. No paid disk, worker, Render database or paid preview is configured.
 MongoDB remains on the existing Atlas cluster, using `ace_fisio_partner_demo`.
@@ -51,6 +73,5 @@ without writing test records. Docker itself requires Docker to be installed;
 Render builds the Linux image. Local `test:ui`/`test:e2e` rebuild the regular local
 preview and continue using `ace_fisio_ui_test`, independently of partner data.
 
-Deployment files and a successful local build do not mean a public deployment
-exists: Render account/repository authorization and a successful hosted build
-must still be completed.
+Deployment files and a successful build do not mean the app is ready: database
+connectivity, a live Render deployment and public login checks must also pass.

@@ -64,6 +64,8 @@ def main():
         raise SystemExit("Existing service does not match the free preview configuration; no changes made.")
     service_id = service["id"]
     print("Service:", service_id, "Plan:", details["plan"], "URL:", details.get("url", "pending"))
+    if "--network" in sys.argv:
+        print("Outbound network ranges:", call("GET", f"/services/{service_id}/outbound-ips"))
     if "--deploy" in sys.argv:
         call("POST", f"/services/{service_id}/deploys", json={"clearCache": "do_not_clear"})
         print("Requested manual deployment of the free preview.")
@@ -71,6 +73,17 @@ def main():
     if deploys:
         latest = deploys[0]["deploy"]
         print("Latest deployment:", latest["id"], latest["status"])
+    if "--logs" in sys.argv:
+        private = [token]
+        for source in (ROOT / ".env", ROOT / ".env.partner"):
+            private.extend(value for key, value in dotenv_values(source).items()
+                           if key in ("MONGO_URL", "JWT_SECRET_KEY", "PARTNER_TEST_PASSWORD") and value)
+        logs = call("GET", "/logs", params={"ownerId": owner_id, "resource": service_id, "limit": 30})
+        for entry in reversed(logs.get("logs", [])):
+            message = entry.get("message", "")
+            for secret in private:
+                message = message.replace(secret, "[REDACTED]")
+            print(message)
 
 
 if __name__ == "__main__":
