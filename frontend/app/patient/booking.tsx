@@ -6,15 +6,10 @@ import { useRouter } from "expo-router";
 import { AppShell } from "@/src/components/AppShell";
 import { Card, Button, Chip, Loading } from "@/src/components/ui";
 import { useGuard } from "@/src/hooks/useGuard";
-import { api, Procedure, Area } from "@/src/api/client";
+import { api, Procedure, Area, User, ProfessionalService } from "@/src/api/client";
+import { Select } from "@/src/components/Select";
 import { colors, spacing, radii, areaLabel } from "@/src/theme/tokens";
 import { toYMD, WEEKDAYS_SHORT, MONTHS } from "@/src/utils/format";
-
-const TIME_SLOTS = (() => {
-  const out: string[] = [];
-  for (let h = 7; h <= 20; h++) { out.push(`${String(h).padStart(2, "0")}:00`); if (h < 20) out.push(`${String(h).padStart(2, "0")}:30`); }
-  return out;
-})();
 
 export default function Booking() {
   const { ready, user } = useGuard("patient");
@@ -30,6 +25,24 @@ export default function Booking() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [professionals, setProfessionals] = useState<Pick<User, "id" | "name" | "role">[]>([]);
+  const [professionalId, setProfessionalId] = useState("");
+  const [services, setServices] = useState<ProfessionalService[]>([]);
+  const [serviceId, setServiceId] = useState("");
+  const [slots, setSlots] = useState<string[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+
+  useEffect(() => { if (ready) api.bookingProfessionals().then(setProfessionals).catch(e => setErr(e.message)); }, [ready]);
+  useEffect(() => { if (ready) api.listProfessionalServices().then(setServices).catch(e => setErr(e.message)); }, [ready]);
+  useEffect(() => {
+    let active = true;
+    setTime(""); setSlots([]);
+    if (!professionalId || !dateYmd) return;
+    setSlotsLoading(true);
+    api.bookingSlots(professionalId, dateYmd, serviceId || undefined).then(s => { if (active) setSlots(s); })
+      .catch(e => { if (active) setErr(e.message); }).finally(() => { if (active) setSlotsLoading(false); });
+    return () => { active = false; };
+  }, [professionalId, dateYmd, serviceId]);
 
   useEffect(() => {
     (async () => {
@@ -56,7 +69,7 @@ export default function Booking() {
   const confirm = async () => {
     setBusy(true); setErr(null);
     try {
-      await api.createAppointment({ patient_id: user!.patient_id, area, procedure, date: dateYmd, time, duration_min: 60 });
+      await api.createAppointment({ patient_id: user!.patient_id, professional_id: professionalId, service_id: serviceId || null, area, procedure, date: dateYmd, time, duration_min: 60 });
       setDone(true);
     } catch (e: any) {
       setErr(e?.message ?? "Não foi possível agendar");
@@ -93,8 +106,8 @@ export default function Booking() {
             <Text style={styles.stepTitle}>Serviço</Text>
             {canPickArea && (
               <View style={{ flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg }}>
-                <Chip label="Fisioterapia" active={area === "fisio"} onPress={() => { setArea("fisio"); setProcedure(""); }} testID="book-area-fisio" />
-                <Chip label="Pilates" active={area === "pilates"} onPress={() => { setArea("pilates"); setProcedure(""); }} testID="book-area-pilates" />
+                <Chip label="Fisioterapia" active={area === "fisio"} onPress={() => { setArea("fisio"); setProcedure(""); setServiceId(""); }} testID="book-area-fisio" />
+                <Chip label="Pilates" active={area === "pilates"} onPress={() => { setArea("pilates"); setProcedure(""); setServiceId(""); }} testID="book-area-pilates" />
               </View>
             )}
             <Text style={styles.help}>Selecione o procedimento em {areaLabel[area]}:</Text>
@@ -106,7 +119,13 @@ export default function Booking() {
                 </Card>
               </Pressable>
             ))}
-            <Button title="Continuar" onPress={() => setStep(2)} disabled={!procedure} testID="step1-next" style={{ marginTop: spacing.lg }} />
+            <Select title="Profissional" testID="book-professional" placeholder="Selecione o profissional" value={professionalId} onChange={id => { setProfessionalId(id); setServiceId(""); }}
+              options={professionals.map(p => ({ label: p.name, value: p.id }))} />
+            {services.some(s => s.professional_id === professionalId) && <Select title="Serviço e preço" testID="book-service" placeholder="Selecione o serviço" value={serviceId}
+              options={services.filter(s => s.professional_id === professionalId && (s.area === area || s.area === "ambos")).map(s => ({ label: `${s.name} · ${s.duration_min} min · R$ ${(s.price_cents / 100).toFixed(2)}`, value: s.id }))}
+              onChange={id => { setServiceId(id); const s = services.find(s => s.id === id); if (s) setProcedure(s.name); }} />}
+            {err ? <Text style={styles.err}>{err}</Text> : null}
+            <Button title="Continuar" onPress={() => setStep(2)} disabled={!procedure || !professionalId} testID="step1-next" style={{ marginTop: spacing.lg }} />
           </View>
         )}
 
@@ -127,8 +146,9 @@ export default function Booking() {
               })}
             </View>
             <Text style={[styles.stepTitle, { marginTop: spacing.lg }]}>Horário</Text>
+            {slotsLoading ? <Loading /> : dateYmd && slots.length === 0 ? <Text style={styles.help}>Nenhum horário disponível nesta data.</Text> : null}
             <View style={styles.timeGrid}>
-              {TIME_SLOTS.map((t) => {
+              {slots.map((t) => {
                 const active = t === time;
                 return (
                   <Pressable key={t} testID={`book-time-${t}`} onPress={() => setTime(t)} style={[styles.timeCell, active && styles.timeCellActive]}>
@@ -137,6 +157,7 @@ export default function Booking() {
                 );
               })}
             </View>
+            {err ? <Text style={styles.err}>{err}</Text> : null}
             <View style={{ flexDirection: "row", gap: spacing.md, marginTop: spacing.lg }}>
               <Button title="Voltar" variant="ghost" onPress={() => setStep(1)} testID="step2-back" style={{ flex: 1 }} />
               <Button title="Continuar" onPress={() => setStep(3)} disabled={!dateYmd || !time} testID="step2-next" style={{ flex: 1 }} />
@@ -150,6 +171,8 @@ export default function Booking() {
             <Card style={{ marginBottom: spacing.lg }}>
               <SummaryRow k="Serviço" v={areaLabel[area]} />
               <SummaryRow k="Procedimento" v={procedure} />
+              <SummaryRow k="Profissional" v={professionals.find(p => p.id === professionalId)?.name || ""} />
+              {serviceId && <SummaryRow k="Valor" v={((services.find(s => s.id === serviceId)?.price_cents || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} />}
               <SummaryRow k="Data" v={`${WEEKDAYS_SHORT[new Date(dateYmd + "T00:00:00").getDay()]}, ${dateYmd.split("-").reverse().join("/")}`} />
               <SummaryRow k="Horário" v={time} last />
             </Card>

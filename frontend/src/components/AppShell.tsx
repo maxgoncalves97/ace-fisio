@@ -9,10 +9,11 @@ import {
   Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useRouter, usePathname } from "expo-router";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, spacing, radii } from "@/src/theme/tokens";
 import { useAuth } from "@/src/context/AuthContext";
+import { AceLogo } from "./AceLogo";
 
 export type NavItem = {
   key: string;
@@ -70,13 +71,8 @@ export function AppShell({
         {/* Sidebar */}
         <View style={styles.sidebar}>
           <View style={styles.brandRow}>
-            <View style={styles.logoDot}>
-              <Feather name="plus" size={18} color={colors.onBrandPrimary} />
-            </View>
-            <View>
-              <Text style={styles.brandName}>FisioPilates</Text>
+              <AceLogo width={180} onDark />
               <Text style={styles.brandSub}>{role === "admin" ? "Administração" : "Paciente"}</Text>
-            </View>
           </View>
           <ScrollView style={{ flex: 1 }}>
             {nav.map((n) => {
@@ -88,7 +84,7 @@ export function AppShell({
                   onPress={() => go(n.route)}
                   style={[styles.sideItem, isActive && styles.sideItemActive]}
                 >
-                  <Feather name={n.icon} size={18} color={isActive ? colors.brandPrimary : colors.onSurfaceTertiary} />
+                  <Feather name={n.icon} size={18} color={isActive ? colors.surfaceInverse : "#DDEBC9"} />
                   <Text style={[styles.sideLabel, isActive && styles.sideLabelActive]}>{n.label}</Text>
                 </Pressable>
               );
@@ -97,7 +93,7 @@ export function AppShell({
           <View style={styles.userBox}>
             <Text style={styles.userName} numberOfLines={1}>{user?.name || user?.email}</Text>
             <Pressable testID="sidebar-logout" onPress={signOut} style={styles.logoutBtn}>
-              <Feather name="log-out" size={16} color={colors.error} />
+              <Feather name="log-out" size={16} color={colors.brandLime} />
               <Text style={styles.logoutText}>Sair</Text>
             </Pressable>
           </View>
@@ -124,6 +120,7 @@ export function AppShell({
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafe}>
         <View style={styles.mobileHeader}>
+          <AceLogo variant="icon" width={38} />
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
             {subtitle ? <Text style={styles.headerSubtitle} numberOfLines={1}>{subtitle}</Text> : null}
@@ -167,6 +164,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     minHeight: 56,
+    gap: spacing.md,
   },
   tabBarSafe: { backgroundColor: colors.surfaceSecondary, borderTopWidth: 1, borderTopColor: colors.border },
   tabBar: { flexDirection: "row", paddingTop: spacing.sm, paddingBottom: spacing.xs },
@@ -177,30 +175,25 @@ const styles = StyleSheet.create({
   wideRoot: { flex: 1, flexDirection: "row", backgroundColor: colors.surface },
   sidebar: {
     width: 248,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: colors.surfaceInverse,
     borderRightWidth: 1,
     borderRightColor: colors.border,
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.md,
   },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.sm, marginBottom: spacing.xl },
-  logoDot: {
-    width: 36, height: 36, borderRadius: 10, backgroundColor: colors.brandPrimary,
-    alignItems: "center", justifyContent: "center",
-  },
-  brandName: { fontSize: 16, fontWeight: "600", color: colors.onSurface },
-  brandSub: { fontSize: 12, color: colors.onSurfaceTertiary },
+  brandRow: { alignItems: "flex-start", gap: spacing.sm, paddingHorizontal: spacing.sm, marginBottom: spacing.xl },
+  brandSub: { fontSize: 12, color: "#DDEBC9" },
   sideItem: {
     flexDirection: "row", alignItems: "center", gap: spacing.md,
     paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderRadius: radii.sm, marginBottom: 2,
   },
-  sideItemActive: { backgroundColor: colors.brandTertiary },
-  sideLabel: { fontSize: 14, color: colors.onSurfaceTertiary, fontWeight: "500" },
+  sideItemActive: { backgroundColor: colors.brandLime },
+  sideLabel: { fontSize: 14, color: "#FFFFFF", fontWeight: "500" },
   sideLabelActive: { color: colors.brandPrimary, fontWeight: "600" },
-  userBox: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
-  userName: { fontSize: 13, color: colors.onSurfaceSecondary, paddingHorizontal: spacing.sm, marginBottom: spacing.sm },
+  userBox: { borderTopWidth: 1, borderTopColor: "#40635A", paddingTop: spacing.md },
+  userName: { fontSize: 13, color: "#DDEBC9", paddingHorizontal: spacing.sm, marginBottom: spacing.sm },
   logoutBtn: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm },
-  logoutText: { color: colors.error, fontSize: 14, fontWeight: "500" },
+  logoutText: { color: "#FFFFFF", fontSize: 14, fontWeight: "500" },
   wideContent: { flex: 1 },
   wideHeader: {
     flexDirection: "row", alignItems: "center",

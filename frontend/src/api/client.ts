@@ -1,6 +1,7 @@
 import { getToken } from "@/src/auth/storage";
 
-const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
+// Hosted web builds use the same HTTPS origin; native/local builds supply a URL.
+const BASE = process.env.EXPO_PUBLIC_BACKEND_URL || "";
 
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = await getToken();
@@ -63,8 +64,15 @@ export interface Procedure {
   area: Area;
 }
 
+export interface ProfessionalService {
+  id: string; professional_id: string; name: string; area: Area; duration_min: number; price_cents: number;
+}
+export interface Availability { weekdays: number[]; start: string; end: string; }
+
 export interface Appointment {
   id: string;
+  series_id?: string | null;
+  clinic_id?: string;
   patient_id: string;
   patient_name: string;
   professional_id?: string | null;
@@ -196,6 +204,12 @@ export const api = {
     return req<Appointment[]>(`/appointments${qs ? `?${qs}` : ""}`);
   },
   createAppointment: (body: any) => req<Appointment>("/appointments", { method: "POST", body: JSON.stringify(body) }),
+  createAppointmentSeries: (body: any) => req<{ id: string; appointments: Appointment[] }>("/appointment-series", { method: "POST", body: JSON.stringify(body) }),
+  cancelFutureSeries: (id: string) => req<{ cancelled: number }>(`/appointment-series/${id}`, { method: "DELETE" }),
+  bookingProfessionals: () => req<Pick<User, "id" | "name" | "role">[]>("/booking/professionals"),
+  bookingSlots: (professionalId: string, date: string, serviceId?: string) => req<string[]>(`/booking/slots?${new URLSearchParams({ professional_id: professionalId, date, ...(serviceId ? { service_id: serviceId } : {}) })}`),
+  notificationPreferences: () => req<{ enabled: boolean; phone: string; whatsapp_status: string }>("/notification-preferences"),
+  saveWhatsAppConsent: (enabled: boolean, phone: string) => req<{ enabled: boolean; phone: string }>("/notification-preferences/whatsapp", { method: "PUT", body: JSON.stringify({ enabled, phone }) }),
   setApptStatus: (id: string, status: ApptStatus) =>
     req<Appointment>(`/appointments/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   reschedule: (id: string, body: any) => req<Appointment>(`/appointments/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
@@ -233,4 +247,8 @@ export const api = {
   adminDashboard: (area?: string) => req<any>(`/admin/dashboard${area && area !== "todos" ? `?area=${area}` : ""}`),
   patientDashboard: () => req<any>("/patient/dashboard"),
   listProfessionals: () => req<User[]>("/professionals"),
+  listProfessionalServices: () => req<ProfessionalService[]>("/professional-services"),
+  createProfessionalService: (body: Omit<ProfessionalService, "id" | "professional_id">) => req<ProfessionalService>("/professional-services", { method: "POST", body: JSON.stringify(body) }),
+  getAvailability: () => req<Availability>("/professional-availability"),
+  saveAvailability: (body: Availability) => req<Availability>("/professional-availability", { method: "PUT", body: JSON.stringify(body) }),
 };

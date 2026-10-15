@@ -86,3 +86,7 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+
+# Local browser workflow reports may contain synthetic patient screenshots/tokens.
+frontend/playwright-report/
+frontend/test-results/

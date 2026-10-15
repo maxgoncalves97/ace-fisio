@@ -2,6 +2,7 @@ import os
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from typing import List, Optional, Literal, Annotated
 import uuid
 
@@ -13,6 +14,7 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
+from pymongo.errors import DuplicateKeyError
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -141,6 +143,7 @@ class PatientIn(BaseModel):
 
 class Patient(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    clinic_id: str = "default"
     name: str
     birth_date: Optional[str] = None
     phone: str = ""
@@ -200,12 +203,106 @@ class AssessmentIn(BaseModel):
 class AppointmentIn(BaseModel):
     patient_id: str
     professional_id: Optional[str] = None
+    service_id: Optional[str] = None
     area: Area = "fisio"
     procedure: str = ""
     date: str  # YYYY-MM-DD
     time: str  # HH:mm
-    duration_min: int = 60
+    duration_min: int = Field(default=60, ge=5, le=240)
     notes: str = ""
+
+
+class RecurringAppointmentIn(AppointmentIn):
+    occurrences: int = Field(default=4, ge=2, le=52)
+
+
+class WhatsAppConsentIn(BaseModel):
+    enabled: bool
+    phone: str = Field(default="", max_length=30)
+
+
+class ProfessionalServiceIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    area: Area = "fisio"
+    duration_min: int = Field(default=60, ge=5, le=240)
+    price_cents: int = Field(default=0, ge=0)
+
+
+class AvailabilityIn(BaseModel):
+    weekdays: List[int] = Field(default_factory=lambda: [0, 1, 2, 3, 4])
+    start: str = "08:00"
+    end: str = "18:00"
+
+
+async def validate_availability(prof_id: str, dt: datetime, duration: int):
+    schedule = await db.professional_availability.find_one({"professional_id": prof_id})
+    if not schedule:
+        return  # Legacy calendars remain usable until working hours are configured.
+    end = dt + timedelta(minutes=duration)
+    if dt.weekday() not in schedule["weekdays"] or dt.strftime("%H:%M") < schedule["start"] or end.date() != dt.date() or end.strftime("%H:%M") > schedule["end"]:
+        raise HTTPException(400, "Horário fora da disponibilidade do profissional")
+
+
+def clinic_id(user: dict) -> str:
+    return user.get("clinic_id", "default")
+
+
+async def reserve_calendar(docs: list, owner: str):
+    # Unique minute keys make overlapping writes mutually exclusive across workers.
+    keys = []
+    for doc in docs:
+        start = datetime.fromisoformat(doc["datetime"])
+        for minute in range(doc["duration_min"]):
+            keys.append({"_id": f'{doc["professional_id"]}:{(start + timedelta(minutes=minute)).isoformat()}',
+                         "owner": owner, "appointment_id": doc["id"]})
+    try:
+        await db.calendar_reservations.insert_many(keys, ordered=True)
+    except Exception as exc:
+        await db.calendar_reservations.delete_many({"owner": owner})
+        if isinstance(exc, DuplicateKeyError) or getattr(exc, "details", {}).get("writeErrors", [{}])[0].get("code") == 11000:
+            raise HTTPException(409, "Horário ocupado. Atualize a agenda e tente novamente.")
+        raise
+
+
+async def build_appointment(body: AppointmentIn, user: dict, dt: datetime, series_id=None):
+    cid = clinic_id(user)
+    patient = await _get_patient_or_404(body.patient_id)
+    if patient.get("clinic_id", "default") != cid:
+        raise HTTPException(403, "Paciente de outra clínica")
+    prof_id = body.professional_id or (user["id"] if user["role"] != "patient" else None)
+    if not prof_id:
+        raise HTTPException(400, "Selecione um profissional")
+    prof = await db.users.find_one({"id": prof_id, "role": {"$in": ["admin_fisio", "admin_pilates"]}}, {"_id": 0, "password_hash": 0})
+    if not prof or prof.get("clinic_id", "default") != cid:
+        raise HTTPException(400, "Profissional inválido")
+    service = None
+    if body.service_id:
+        service = await db.professional_services.find_one({"id": body.service_id, "professional_id": prof_id, "clinic_id": cid})
+        if not service:
+            raise HTTPException(400, "Serviço inválido para este profissional")
+    duration = service["duration_min"] if service else body.duration_min
+    await validate_availability(prof_id, dt, duration)
+    if await _has_conflict(prof_id, dt, duration):
+        raise HTTPException(409, f"Horário ocupado em {dt.date().isoformat()}")
+    return {"id": str(uuid.uuid4()), "clinic_id": cid, "series_id": series_id,
+            "patient_id": patient["id"], "patient_name": patient["name"],
+            "professional_id": prof_id, "professional_name": prof.get("name", ""),
+            "area": service["area"] if service else body.area, "procedure": service["name"] if service else body.procedure,
+            "service_id": body.service_id, "price_cents": service["price_cents"] if service else None, "currency": "BRL",
+            "date": dt.date().isoformat(), "time": dt.strftime("%H:%M"), "datetime": dt.isoformat(),
+            "duration_min": duration, "notes": body.notes, "status": "agendado",
+            "created_by_role": user["role"], "created_at": datetime.now(timezone.utc).isoformat()}
+
+
+async def persist_appointments(docs: list):
+    owner = str(uuid.uuid4())
+    await reserve_calendar(docs, owner)
+    try:
+        await db.appointments.insert_many([dict(d) for d in docs])
+    except Exception:
+        await db.appointments.delete_many({"id": {"$in": [d["id"] for d in docs]}})
+        await db.calendar_reservations.delete_many({"owner": owner})
+        raise
 
 
 class StatusIn(BaseModel):
@@ -307,6 +404,7 @@ async def delete_procedure(pid: str, admin: AdminUser):
 @api_router.post("/patients", response_model=Patient)
 async def create_patient(body: PatientIn, admin: AdminUser):
     p = Patient(**{k: v for k, v in body.dict().items() if k in Patient.model_fields})
+    p.clinic_id = clinic_id(admin)
     if body.create_login and body.email and body.login_password:
         existing = await db.users.find_one({"email": body.email.lower()})
         if existing:
@@ -319,6 +417,7 @@ async def create_patient(body: PatientIn, admin: AdminUser):
             "role": "patient",
             "name": body.name,
             "patient_id": p.id,
+            "clinic_id": p.clinic_id,
         })
         p.user_id = uid
     await db.patients.insert_one(p.dict())
@@ -435,8 +534,7 @@ async def create_assessment(pid: str, body: AssessmentIn, admin: AdminUser):
 async def _has_conflict(professional_id: Optional[str], dt: datetime, duration: int, exclude_id: Optional[str] = None) -> bool:
     if not professional_id:
         return False
-    day = dt.date().isoformat()
-    q = {"professional_id": professional_id, "date": day, "status": {"$ne": "cancelado"}}
+    q = {"professional_id": professional_id, "date": {"$gte": (dt - timedelta(days=1)).date().isoformat(), "$lte": (dt + timedelta(days=1)).date().isoformat()}, "status": {"$ne": "cancelado"}}
     if exclude_id:
         q["id"] = {"$ne": exclude_id}
     others = await db.appointments.find(q, {"_id": 0}).to_list(200)
@@ -462,7 +560,9 @@ async def list_appointments(
     area: Optional[str] = None,
     patient_id: Optional[str] = None,
 ):
-    q: dict = {}
+    q: dict = {"clinic_id": clinic_id(user)}
+    if clinic_id(user) == "default":
+        q = {"$or": [{"clinic_id": "default"}, {"clinic_id": {"$exists": False}}]}
     if user["role"] == "patient":
         q["patient_id"] = user.get("patient_id")
     elif patient_id:
@@ -479,61 +579,57 @@ async def list_appointments(
 
 @api_router.post("/appointments")
 async def create_appointment(body: AppointmentIn, user: AnyUser):
-    is_patient = user["role"] == "patient"
-    if is_patient and body.patient_id != user.get("patient_id"):
+    if user["role"] == "patient" and body.patient_id != user.get("patient_id"):
         raise HTTPException(403, "Sem permissão")
-
     try:
-        dt = datetime.fromisoformat(f"{body.date}T{body.time}:00")
-    except Exception:
+        dt = datetime.strptime(f"{body.date}T{body.time}", "%Y-%m-%dT%H:%M")
+    except ValueError:
         raise HTTPException(400, "Data ou horário inválidos")
-
-    # 12h advance rule for patients only
-    if is_patient:
-        naive_now = datetime.now()
-        if dt < naive_now + timedelta(hours=12):
-            raise HTTPException(
-                400,
-                "Este horário não pode ser agendado online. Os agendamentos devem ser realizados com pelo menos 12 horas de antecedência. Entre em contato com a clínica para verificar disponibilidade.",
-            )
-
-    prof_id = body.professional_id or (None if is_patient else user["id"])
-    if await _has_conflict(prof_id, dt, body.duration_min):
-        raise HTTPException(400, "Já existe um atendimento para este profissional neste horário")
-
-    patient = await _get_patient_or_404(body.patient_id)
-    prof = None
-    if prof_id:
-        prof = await db.users.find_one({"id": prof_id}, {"_id": 0, "password_hash": 0})
-
-    doc = {
-        "id": str(uuid.uuid4()),
-        "patient_id": body.patient_id,
-        "patient_name": patient["name"],
-        "professional_id": prof_id,
-        "professional_name": (prof.get("name") if prof else "") or (prof.get("email") if prof else ""),
-        "area": body.area,
-        "procedure": body.procedure,
-        "date": body.date,
-        "time": body.time,
-        "datetime": dt.isoformat(),
-        "duration_min": body.duration_min,
-        "status": "agendado",
-        "created_by_role": user["role"],
-        "notes": body.notes,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    await db.appointments.insert_one(doc)
-    doc.pop("_id", None)
-
-    # notify patient user if exists
-    if patient.get("user_id"):
-        await push_notification(
-            patient["user_id"], "Consulta agendada",
-            f"{body.procedure or 'Atendimento'} em {datetime.fromisoformat(body.date).strftime('%d/%m/%Y')} às {body.time}.",
-            "appointment",
-        )
+    if user["role"] == "patient":
+        clinic = await db.clinics.find_one({"id": clinic_id(user)}) or {}
+        now = datetime.now(ZoneInfo(clinic.get("timezone", "America/Sao_Paulo"))).replace(tzinfo=None)
+        if dt < now + timedelta(hours=12):
+            raise HTTPException(400, "Agendamentos exigem pelo menos 12 horas de antecedência")
+    doc = await build_appointment(body, user, dt)
+    await persist_appointments([doc])
+    await notify_booking(body.patient_id, 1)
     return doc
+
+
+@api_router.post("/appointment-series")
+async def create_appointment_series(body: RecurringAppointmentIn, admin: AdminUser):
+    try:
+        start = datetime.strptime(f"{body.date}T{body.time}", "%Y-%m-%dT%H:%M")
+    except ValueError:
+        raise HTTPException(400, "Data ou horário inválidos")
+    series_id = str(uuid.uuid4())
+    docs = [await build_appointment(body, admin, start + timedelta(weeks=i), series_id)
+            for i in range(body.occurrences)]
+    await persist_appointments(docs)
+    await notify_booking(body.patient_id, len(docs))
+    return {"id": series_id, "appointments": docs}
+
+
+async def notify_booking(patient_id: str, count: int):
+    patient = await db.patients.find_one({"id": patient_id})
+    if patient and patient.get("user_id"):
+        try:
+            await push_notification(patient["user_id"], "Agendamento registrado", f"{count} atendimento(s) registrado(s). Confira as datas na sua agenda.", "appointment")
+        except Exception:
+            logger.warning("Appointment saved but in-app notification could not be created")
+
+
+@api_router.delete("/appointment-series/{sid}")
+async def cancel_future_series(sid: str, admin: AdminUser):
+    clinic = await db.clinics.find_one({"id": clinic_id(admin)}) or {}
+    now = datetime.now(ZoneInfo(clinic.get("timezone", "America/Sao_Paulo"))).replace(tzinfo=None).isoformat()
+    query = {"series_id": sid, "clinic_id": clinic_id(admin), "datetime": {"$gte": now},
+             "status": {"$in": ["agendado", "confirmado", "remarcado"]}}
+    docs = await db.appointments.find(query, {"_id": 0}).to_list(52)
+    for doc in docs:
+        await db.appointments.update_one({"id": doc["id"]}, {"$set": {"status": "cancelado"}})
+        await db.calendar_reservations.delete_many({"appointment_id": doc["id"]})
+    return {"cancelled": len(docs)}
 
 
 @api_router.patch("/appointments/{aid}/status")
@@ -541,7 +637,13 @@ async def set_status(aid: str, body: StatusIn, admin: AdminUser):
     a = await db.appointments.find_one({"id": aid}, {"_id": 0})
     if not a:
         raise HTTPException(404, "Agendamento não encontrado")
+    if a.get("clinic_id", "default") != clinic_id(admin):
+        raise HTTPException(403, "Sem permissão")
+    if a["status"] == "cancelado" and body.status != "cancelado":
+        raise HTTPException(400, "Crie um novo agendamento para reativar este horário")
     await db.appointments.update_one({"id": aid}, {"$set": {"status": body.status}})
+    if body.status == "cancelado":
+        await db.calendar_reservations.delete_many({"appointment_id": aid})
     a["status"] = body.status
     return a
 
@@ -551,16 +653,35 @@ async def reschedule_appointment(aid: str, body: AppointmentIn, user: AnyUser):
     a = await db.appointments.find_one({"id": aid}, {"_id": 0})
     if not a:
         raise HTTPException(404, "Agendamento não encontrado")
+    if a.get("clinic_id", "default") != clinic_id(user):
+        raise HTTPException(403, "Sem permissão")
     is_patient = user["role"] == "patient"
     if is_patient and a["patient_id"] != user.get("patient_id"):
         raise HTTPException(403, "Sem permissão")
+    if body.patient_id != a["patient_id"]:
+        raise HTTPException(400, "Não é possível alterar o paciente")
     try:
         dt = datetime.fromisoformat(f"{body.date}T{body.time}:00")
     except Exception:
         raise HTTPException(400, "Data ou horário inválidos")
-    if is_patient and dt < datetime.now() + timedelta(hours=12):
+    clinic = await db.clinics.find_one({"id": clinic_id(user)}) or {}
+    now = datetime.now(ZoneInfo(clinic.get("timezone", "America/Sao_Paulo"))).replace(tzinfo=None)
+    if is_patient and dt < now + timedelta(hours=12):
         raise HTTPException(400, "Os agendamentos devem ser realizados com pelo menos 12 horas de antecedência.")
     prof_id = body.professional_id or a.get("professional_id")
+    prof = await db.users.find_one({"id": prof_id, "role": {"$in": ["admin_fisio", "admin_pilates"]}})
+    if not prof or prof.get("clinic_id", "default") != clinic_id(user):
+        raise HTTPException(400, "Profissional inválido")
+    service_id = body.service_id or a.get("service_id")
+    service = None
+    if service_id:
+        service = await db.professional_services.find_one({"id": service_id, "professional_id": prof_id, "clinic_id": clinic_id(user)})
+        if not service:
+            raise HTTPException(400, "Serviço inválido")
+        body.duration_min = service["duration_min"]
+        body.procedure = service["name"]
+        body.area = service["area"]
+    await validate_availability(prof_id, dt, body.duration_min)
     if await _has_conflict(prof_id, dt, body.duration_min, exclude_id=aid):
         raise HTTPException(400, "Conflito de horário para este profissional")
     upd = {
@@ -568,8 +689,32 @@ async def reschedule_appointment(aid: str, body: AppointmentIn, user: AnyUser):
         "duration_min": body.duration_min, "procedure": body.procedure,
         "area": body.area, "notes": body.notes, "status": "remarcado",
         "professional_id": prof_id,
+        "professional_name": prof.get("name", ""),
+        "service_id": service_id,
+        "price_cents": service["price_cents"] if service else a.get("price_cents"),
     }
-    await db.appointments.update_one({"id": aid}, {"$set": upd})
+    # Reserve only new minutes, retaining the old reservation until the update succeeds.
+    owner = str(uuid.uuid4())
+    old_keys = await db.calendar_reservations.find({"appointment_id": aid}).to_list(240)
+    old_ids = {r["_id"] for r in old_keys}
+    minutes = []
+    for i in range(body.duration_min):
+        key = f'{prof_id}:{(dt + timedelta(minutes=i)).isoformat()}'
+        if key not in old_ids:
+            minutes.append({"_id": key, "owner": owner, "appointment_id": aid})
+    try:
+        if minutes:
+            await db.calendar_reservations.insert_many(minutes, ordered=True)
+        result = await db.appointments.update_one({"id": aid, "datetime": a["datetime"], "status": a["status"]}, {"$set": upd})
+        if result.matched_count != 1:
+            raise HTTPException(409, "O agendamento mudou. Atualize a agenda.")
+    except Exception as exc:
+        await db.calendar_reservations.delete_many({"owner": owner})
+        if getattr(exc, "code", None) == 11000 or getattr(exc, "details", {}).get("writeErrors"):
+            raise HTTPException(409, "Horário ocupado")
+        raise
+    keep = {f'{prof_id}:{(dt + timedelta(minutes=i)).isoformat()}' for i in range(body.duration_min)}
+    await db.calendar_reservations.delete_many({"_id": {"$in": list(old_ids - keep)}})
     return {**a, **upd}
 
 
@@ -578,9 +723,12 @@ async def cancel_appointment(aid: str, user: AnyUser):
     a = await db.appointments.find_one({"id": aid}, {"_id": 0})
     if not a:
         raise HTTPException(404, "Agendamento não encontrado")
+    if a.get("clinic_id", "default") != clinic_id(user):
+        raise HTTPException(403, "Sem permissão")
     if user["role"] == "patient" and a["patient_id"] != user.get("patient_id"):
         raise HTTPException(403, "Sem permissão")
     await db.appointments.update_one({"id": aid}, {"$set": {"status": "cancelado"}})
+    await db.calendar_reservations.delete_many({"appointment_id": aid})
     return {"ok": True}
 
 
@@ -672,7 +820,9 @@ async def create_note(pid: str, body: NoteIn, admin: AdminUser):
 # ============ Payments ============
 @api_router.get("/payments")
 async def list_payments(user: AnyUser, status: Optional[str] = None, area: Optional[str] = None, patient_id: Optional[str] = None):
-    q: dict = {}
+    q: dict = {"clinic_id": clinic_id(user)}
+    if clinic_id(user) == "default":
+        q = {"$or": [{"clinic_id": "default"}, {"clinic_id": {"$exists": False}}]}
     if user["role"] == "patient":
         q["patient_id"] = user.get("patient_id")
     elif patient_id:
@@ -782,8 +932,104 @@ async def patient_dashboard(user: AnyUser):
 # ============ Professionals list (for assignment) ============
 @api_router.get("/professionals")
 async def list_professionals(admin: AdminUser):
-    docs = await db.users.find({"role": {"$in": ["admin_fisio", "admin_pilates"]}}, {"_id": 0, "password_hash": 0}).to_list(50)
+    docs = await db.users.find({"role": {"$in": ["admin_fisio", "admin_pilates"]}}, {"_id": 0, "password_hash": 0}).to_list(500)
+    docs = [d for d in docs if d.get("clinic_id", "default") == clinic_id(admin)]
     return docs
+
+
+@api_router.get("/booking/professionals")
+async def booking_professionals(user: AnyUser):
+    docs = await list_professionals(user)
+    return [{"id": d["id"], "name": d.get("name", ""), "role": d["role"]} for d in docs]
+
+
+@api_router.get("/booking/slots")
+async def booking_slots(user: AnyUser, professional_id: str, date: str, duration_min: int = Query(default=60, ge=5, le=240), service_id: Optional[str] = None):
+    prof = await db.users.find_one({"id": professional_id, "role": {"$in": ["admin_fisio", "admin_pilates"]}})
+    if not prof or prof.get("clinic_id", "default") != clinic_id(user):
+        raise HTTPException(400, "Profissional inválido")
+    if service_id:
+        service = await db.professional_services.find_one({"id": service_id, "professional_id": professional_id, "clinic_id": clinic_id(user)})
+        if not service:
+            raise HTTPException(400, "Serviço inválido")
+        duration_min = service["duration_min"]
+    try:
+        day = datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(400, "Data inválida")
+    clinic = await db.clinics.find_one({"id": clinic_id(user)}) or {}
+    earliest = datetime.now(ZoneInfo(clinic.get("timezone", "America/Sao_Paulo"))).replace(tzinfo=None) + timedelta(hours=12)
+    slots = []
+    for minute in range(7 * 60, 20 * 60 + 1, 30):
+        dt = day + timedelta(minutes=minute)
+        if user["role"] == "patient" and dt < earliest:
+            continue
+        try:
+            await validate_availability(professional_id, dt, duration_min)
+        except HTTPException:
+            continue
+        if not await _has_conflict(professional_id, dt, duration_min):
+            slots.append(dt.strftime("%H:%M"))
+    return slots
+
+
+@api_router.get("/clinic")
+async def get_clinic(user: AnyUser):
+    return await db.clinics.find_one({"id": clinic_id(user)}, {"_id": 0}) or {
+        "id": clinic_id(user), "name": "ACE Fisio", "timezone": "America/Sao_Paulo", "currency": "BRL"}
+
+
+@api_router.get("/professional-services")
+async def professional_services(user: AnyUser):
+    return await db.professional_services.find({"clinic_id": clinic_id(user)}, {"_id": 0}).to_list(500)
+
+
+@api_router.get("/professional-availability")
+async def get_availability(admin: AdminUser):
+    return await db.professional_availability.find_one({"professional_id": admin["id"]}, {"_id": 0}) or AvailabilityIn().model_dump()
+
+
+@api_router.put("/professional-availability")
+async def save_availability(body: AvailabilityIn, admin: AdminUser):
+    try:
+        start = datetime.strptime(body.start, "%H:%M").strftime("%H:%M")
+        end = datetime.strptime(body.end, "%H:%M").strftime("%H:%M")
+    except ValueError:
+        raise HTTPException(400, "Use horários HH:mm")
+    if start >= end or any(day < 0 or day > 6 for day in body.weekdays):
+        raise HTTPException(400, "Disponibilidade inválida")
+    doc = {"professional_id": admin["id"], "clinic_id": clinic_id(admin), "weekdays": sorted(set(body.weekdays)), "start": start, "end": end}
+    await db.professional_availability.update_one({"professional_id": admin["id"]}, {"$set": doc}, upsert=True)
+    return doc
+
+
+@api_router.post("/professional-services")
+async def save_professional_service(body: ProfessionalServiceIn, admin: AdminUser):
+    doc = {"id": str(uuid.uuid4()), "clinic_id": clinic_id(admin),
+           "professional_id": admin["id"], "currency": "BRL", **body.model_dump()}
+    await db.professional_services.insert_one(dict(doc))
+    return doc
+
+
+@api_router.get("/notification-preferences")
+async def notification_preferences(user: AnyUser):
+    doc = await db.notification_preferences.find_one({"user_id": user["id"]}, {"_id": 0})
+    return {**(doc or {"enabled": False, "phone": ""}), "whatsapp_status": "requires_provider_setup"}
+
+
+@api_router.put("/notification-preferences/whatsapp")
+async def whatsapp_consent(body: WhatsAppConsentIn, user: AnyUser):
+    if user["role"] != "patient":
+        raise HTTPException(403, "Apenas o paciente pode autorizar")
+    phone = "".join(c for c in body.phone if c.isdigit())
+    if body.enabled and (not phone.startswith("55") or not 12 <= len(phone) <= 13):
+        raise HTTPException(400, "Informe WhatsApp com código do Brasil (55), DDD e número")
+    doc = {"user_id": user["id"], "clinic_id": clinic_id(user), "enabled": body.enabled,
+           "phone": phone if body.enabled else "", "consent_version": "whatsapp-reminders-v1",
+           "updated_at": datetime.now(timezone.utc).isoformat()}
+    await db.notification_preferences.update_one({"user_id": user["id"]}, {"$set": doc}, upsert=True)
+    await db.consent_audit.insert_one({"id": str(uuid.uuid4()), **doc})
+    return {**doc, "whatsapp_status": "requires_provider_setup"}
 
 
 app.include_router(api_router)
@@ -798,9 +1044,24 @@ app.add_middleware(
 
 
 # ============ Seed ============
-async def seed():
+async def seed(demo_password: str = "Demo123!"):
     await db.users.create_index("email", unique=True)
     await db.users.create_index("id", unique=True)
+    await db.appointments.create_index([("professional_id", 1), ("date", 1)])
+    await db.appointments.create_index("id", unique=True)
+    await db.appointments.create_index([("clinic_id", 1), ("series_id", 1)])
+    await db.notification_preferences.create_index("user_id", unique=True)
+    await db.professional_availability.create_index("professional_id", unique=True)
+    await db.professional_services.create_index("id", unique=True)
+    await db.clinics.create_index("id", unique=True)
+    await db.clinics.update_one({"id": "default"}, {"$setOnInsert": {
+        "id": "default", "name": "ACE Fisio", "timezone": "America/Sao_Paulo", "currency": "BRL"}}, upsert=True)
+
+    # Demo data is opt-in and must never overwrite an existing database.
+    if os.environ.get("SEED_DEMO", "false").lower() != "true":
+        return
+    if await db.users.count_documents({}) or await db.patients.count_documents({}):
+        return
 
     admins = [
         ("fisio@demo.com", "admin_fisio", "Dr. Ana Ribeiro (Fisio)"),
@@ -814,7 +1075,7 @@ async def seed():
             continue
         uid = str(uuid.uuid4())
         await db.users.insert_one({
-            "id": uid, "email": email, "password_hash": hash_password("Demo123!"),
+            "id": uid, "email": email, "password_hash": hash_password(demo_password),
             "role": role, "name": name, "patient_id": None,
         })
         admin_ids[role] = uid
@@ -822,13 +1083,7 @@ async def seed():
     if await db.meta.find_one({"key": "demo_seeded_v3"}):
         return
 
-    # Fresh demo data: wipe previous demo docs (keep admin users)
-    for coll in ["patients", "appointments", "assessments", "evolutions",
-                 "exercises", "payments", "anamneses", "patient_notes",
-                 "procedures", "notifications"]:
-        await db[coll].delete_many({})
-    await db.users.delete_many({"role": "patient"})
-    await db.meta.delete_many({"key": "demo_seeded_v2"})
+    # Existing collections are preserved.
 
     # Procedures
     procs = [
@@ -858,7 +1113,7 @@ async def seed():
         if dp.get("login"):
             uid = str(uuid.uuid4())
             await db.users.insert_one({
-                "id": uid, "email": dp["email"].lower(), "password_hash": hash_password("Demo123!"),
+                "id": uid, "email": dp["email"].lower(), "password_hash": hash_password(demo_password),
                 "role": "patient", "name": dp["name"], "patient_id": p.id,
             })
             p.user_id = uid

@@ -4,11 +4,11 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 
 import { AppShell } from "@/src/components/AppShell";
-import { Button, Card, Chip, ChipRow, Field, Input, TextArea, StatusBadge, EmptyState, Loading } from "@/src/components/ui";
+import { Button, Card, Chip, ChipRow, Field, TextArea, StatusBadge, EmptyState, Loading } from "@/src/components/ui";
 import { FormModal } from "@/src/components/FormModal";
 import { Select } from "@/src/components/Select";
 import { useGuard } from "@/src/hooks/useGuard";
-import { api, Appointment, Patient, Procedure, User } from "@/src/api/client";
+import { api, Appointment, Patient, Procedure, User, ProfessionalService } from "@/src/api/client";
 import { colors, spacing, radii, statusColors, areaLabel } from "@/src/theme/tokens";
 import { fmtTime, toYMD, WEEKDAYS_SHORT, MONTHS } from "@/src/utils/format";
 
@@ -44,6 +44,7 @@ export default function Agenda() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [actionAppt, setActionAppt] = useState<Appointment | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const range = useMemo(() => {
     if (mode === "dia") {
@@ -187,6 +188,11 @@ export default function Agenda() {
             <Button title="Marcar falta" icon="user-x" variant="secondary" onPress={() => setStatus(actionAppt.id, "faltou")} testID="action-faltou" />
             <Button title="Ver paciente" icon="user" variant="ghost" onPress={() => { const pid = actionAppt.patient_id; setActionAppt(null); router.push(`/admin/patient/${pid}`); }} testID="action-view-patient" />
             <Button title="Cancelar atendimento" icon="x-circle" variant="danger" onPress={() => cancelAppt(actionAppt.id)} testID="action-cancel" />
+            {actionAppt.series_id && <Button title="Cancelar próximas sessões da série" variant="danger" testID="cancel-series" onPress={async () => {
+              try { await api.cancelFutureSeries(actionAppt.series_id!); setActionAppt(null); setActionError(""); load(); }
+              catch (e: any) { setActionError(e.message); }
+            }} />}
+            {actionError ? <Text style={styles.err}>{actionError}</Text> : null}
           </View>
         )}
       </FormModal>
@@ -207,6 +213,7 @@ function ApptCard({ appt, onPress }: { appt: Appointment; onPress: () => void })
           <Text style={styles.apptName} numberOfLines={1}>{appt.patient_name}</Text>
           <Text style={styles.apptMeta} numberOfLines={1}>{appt.procedure || areaLabel[appt.area]} · {areaLabel[appt.area]}</Text>
           {appt.professional_name ? <Text style={styles.apptProf} numberOfLines={1}>{appt.professional_name}</Text> : null}
+          {appt.series_id ? <Text style={styles.apptProf}>Repetição semanal</Text> : null}
         </View>
         <StatusBadge label={sc.label} bg={sc.bg} fg={sc.fg} />
       </Card>
@@ -291,6 +298,9 @@ function NewAppointmentModal({
   const [duration, setDuration] = useState<string>("60");
   const [profId, setProfId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
+  const [occurrences, setOccurrences] = useState("1");
+  const [services, setServices] = useState<ProfessionalService[]>([]);
+  const [serviceId, setServiceId] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -298,6 +308,7 @@ function NewAppointmentModal({
     if (!visible) return;
     setDateYmd(toYMD(defaultDate));
     setErr(null);
+    api.listProfessionalServices().then(setServices).catch(e => setErr(e.message));
     (async () => {
       try {
         const [ps, pr, prof] = await Promise.all([api.listPatients(), api.listProcedures(), api.listProfessionals()]);
@@ -324,12 +335,15 @@ function NewAppointmentModal({
     setBusy(true);
     setErr(null);
     try {
-      await api.createAppointment({
+      const body = {
         patient_id: patientId, area, procedure, date: dateYmd, time,
         duration_min: parseInt(duration, 10), professional_id: profId, notes,
-      });
+        service_id: serviceId || null,
+      };
+      if (occurrences === "1") await api.createAppointment(body);
+      else await api.createAppointmentSeries({ ...body, occurrences: Number(occurrences) });
       // reset
-      setPatientId(null); setProcedure(""); setNotes("");
+      setPatientId(null); setProcedure(""); setNotes(""); setOccurrences("1"); setServiceId("");
       onCreated();
     } catch (e: any) {
       setErr(e?.message ?? "Erro ao criar agendamento");
@@ -346,7 +360,7 @@ function NewAppointmentModal({
       onClose={onClose}
       title="Novo agendamento"
       testID="new-appt-modal"
-      footer={<Button title="Criar agendamento" onPress={submit} loading={busy} testID="submit-appt" />}
+      footer={<Button title={occurrences === "1" ? "Criar agendamento" : `Criar ${occurrences} sessões`} onPress={submit} loading={busy} testID="submit-appt" />}
     >
       <Field label="Paciente">
         <Select
@@ -374,9 +388,14 @@ function NewAppointmentModal({
           placeholder="Selecione"
           value={profId}
           options={professionals.map((p) => ({ label: p.name || p.email, value: p.id }))}
-          onChange={setProfId}
+          onChange={id => { setProfId(id); setServiceId(""); }}
         />
       </Field>
+      {services.some(s => s.professional_id === profId) && <Field label="Serviço e preço do profissional">
+        <Select title="Serviço" testID="appt-service-select" value={serviceId} placeholder="Opcional: usar procedimento acima"
+          options={[{ label: "Usar procedimento acima", value: "" }, ...services.filter(s => s.professional_id === profId).map(s => ({ label: `${s.name} · ${s.duration_min} min · R$ ${(s.price_cents / 100).toFixed(2)}`, value: s.id }))]}
+          onChange={id => { setServiceId(id); const s = services.find(s => s.id === id); if (s) { setProcedure(s.name); setDuration(String(s.duration_min)); } }} />
+      </Field>}
       <View style={{ flexDirection: "row", gap: spacing.md }}>
         <View style={{ flex: 1 }}>
           <Field label="Data">
@@ -395,6 +414,11 @@ function NewAppointmentModal({
       <Field label="Observações">
         <TextArea testID="appt-notes-input" value={notes} onChangeText={setNotes} placeholder="Opcional" />
       </Field>
+      <Field label="Repetição">
+        <Select testID="appt-repeat-select" title="Repetição semanal" value={occurrences} onChange={setOccurrences}
+          options={[{ label: "Não repetir", value: "1" }, ...[2, 4, 6, 8, 10, 12, 24, 52].map(n => ({ label: `${n} sessões semanais`, value: String(n) }))]} />
+      </Field>
+      {occurrences !== "1" && <Text style={styles.actionMeta}>Uma sessão por semana, no mesmo dia e horário. Se houver conflito em qualquer data, nenhuma sessão será criada.</Text>}
       {err ? <Text style={styles.err}>{err}</Text> : null}
     </FormModal>
   );

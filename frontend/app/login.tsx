@@ -9,7 +9,6 @@ import {
   ScrollView,
   useWindowDimensions,
 } from "react-native";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -18,7 +17,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth, isAdmin } from "@/src/context/AuthContext";
 import { api } from "@/src/api/client";
 import { Button, Field, Input } from "@/src/components/ui";
-import { colors, spacing, radii, images } from "@/src/theme/tokens";
+import { colors, spacing, radii } from "@/src/theme/tokens";
+import { AceLogo } from "@/src/components/AceLogo";
 
 export default function Login() {
   const router = useRouter();
@@ -73,10 +73,7 @@ export default function Login() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.logoRow}>
-        <View style={styles.logoDot}>
-          <Feather name="plus" size={22} color={colors.onBrandPrimary} />
-        </View>
-        <Text style={styles.logoText}>FisioPilates</Text>
+        <AceLogo width={200} />
       </View>
       <Text style={styles.title}>Bem-vindo de volta</Text>
       <Text style={styles.subtitle}>Acesse sua conta para gerenciar atendimentos e evoluções.</Text>
@@ -112,13 +109,13 @@ export default function Login() {
             <Text style={styles.forgotText}>Esqueci minha senha</Text>
           </Pressable>
 
-          <View style={styles.demoBox}>
+          {process.env.EXPO_PUBLIC_HIDE_DEMO_ACCOUNTS !== "true" && <View style={styles.demoBox}>
             <Text style={styles.demoTitle}>Contas de demonstração</Text>
             <DemoRow label="Admin Fisioterapia" email="fisio@demo.com" onFill={() => { setEmail("fisio@demo.com"); setPassword("Demo123!"); }} />
             <DemoRow label="Admin Pilates" email="pilates@demo.com" onFill={() => { setEmail("pilates@demo.com"); setPassword("Demo123!"); }} />
             <DemoRow label="Paciente" email="joao@demo.com" onFill={() => { setEmail("joao@demo.com"); setPassword("Demo123!"); }} />
             <Text style={styles.demoHint}>Senha: Demo123!</Text>
-          </View>
+          </View>}
         </>
       ) : (
         <>
@@ -146,8 +143,8 @@ export default function Login() {
     return (
       <View style={styles.wideRoot} testID="login-screen">
         <View style={styles.wideHero}>
-          <Image source={{ uri: images.heroPhysio }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          <LinearGradient colors={["rgba(24,28,26,0.25)", "rgba(24,28,26,0.85)"]} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={[colors.brandLime, colors.brandLeaf, colors.surfaceInverse]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          <View style={styles.heroLogo}><AceLogo variant="icon" width={Math.min(360, width * 0.32)} /></View>
           <View style={styles.heroContent}>
             <Text style={styles.heroTitle}>Cuidado e movimento{"\n"}em um só lugar.</Text>
             <Text style={styles.heroSub}>Gestão completa de fisioterapia e pilates.</Text>
@@ -187,8 +184,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surface },
   formInner: { padding: spacing.xl, maxWidth: 460, width: "100%", alignSelf: "center", flexGrow: 1, justifyContent: "center" },
   logoRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: spacing.xl },
-  logoDot: { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center" },
-  logoText: { fontSize: 20, fontWeight: "600", color: colors.onSurface },
   title: { fontSize: 26, fontWeight: "600", color: colors.onSurface, marginBottom: spacing.xs },
   subtitle: { fontSize: 14, color: colors.onSurfaceTertiary, marginBottom: spacing.xl, lineHeight: 20 },
   err: { color: colors.error, marginBottom: spacing.md, fontSize: 14 },
@@ -204,6 +199,7 @@ const styles = StyleSheet.create({
   // wide
   wideRoot: { flex: 1, flexDirection: "row", backgroundColor: colors.surface },
   wideHero: { flex: 1, backgroundColor: colors.surfaceInverse },
+  heroLogo: { flex: 1, alignItems: "center", justifyContent: "center", paddingBottom: 170 },
   heroContent: { position: "absolute", left: spacing.xxl, right: spacing.xxl, bottom: spacing.xxxl },
   heroTitle: { fontSize: 34, fontWeight: "600", color: "#FFFFFF", lineHeight: 42 },
   heroSub: { fontSize: 16, color: "rgba(255,255,255,0.8)", marginTop: spacing.md },

@@ -3,6 +3,16 @@ export function fmtBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 }
 
+// Accept Brazilian decimal/grouped input and plain dot decimals; reject truncation.
+export function parseBRLInput(input: string): number | null {
+  const value = input.trim();
+  if (/^\d+(?:\.\d{1,2})?$/.test(value)) return Number(value);
+  if (/^(?:\d+|\d{1,3}(?:\.\d{3})+),\d{1,2}$/.test(value)) {
+    return Number(value.replace(/\./g, "").replace(",", "."));
+  }
+  return null;
+}
+
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }

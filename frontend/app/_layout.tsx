@@ -8,6 +8,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { AuthProvider } from "@/src/context/AuthContext";
 import { colors } from "@/src/theme/tokens";
+import { PwaSetup } from "@/src/components/PwaSetup";
 
 LogBox.ignoreAllLogs(true);
 
@@ -27,6 +28,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.surface }}>
       <SafeAreaProvider>
+        <PwaSetup />
         <AuthProvider>
           <Stack
             screenOptions={{

@@ -8,7 +8,8 @@ import { Card, Chip, Button, Field, Input, StatusBadge, Loading, SectionTitle } 
 import { useGuard } from "@/src/hooks/useGuard";
 import { useAuth } from "@/src/context/AuthContext";
 import { api, Procedure } from "@/src/api/client";
-import { colors, spacing, radii, areaLabel } from "@/src/theme/tokens";
+import { colors, spacing, areaLabel } from "@/src/theme/tokens";
+import { ProfessionalSettings } from "@/src/components/ProfessionalSettings";
 
 export default function Settings() {
   const { ready } = useGuard("admin");
@@ -48,6 +49,7 @@ export default function Settings() {
           <StatusBadge label={roleLabel} bg={colors.brandTertiary} fg={colors.brandPrimary} />
         </Card>
 
+        <ProfessionalSettings professionalId={user?.id} />
         <SectionTitle>Tipos de procedimento</SectionTitle>
         <Card style={{ marginBottom: spacing.lg }}>
           <Field label="Novo procedimento">

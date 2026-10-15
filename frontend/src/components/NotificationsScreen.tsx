@@ -9,6 +9,7 @@ import { useGuard } from "@/src/hooks/useGuard";
 import { api, Notification } from "@/src/api/client";
 import { colors, spacing } from "@/src/theme/tokens";
 import { fmtDateTime } from "@/src/utils/format";
+import { WhatsAppPreferences } from "./WhatsAppPreferences";
 
 export function NotificationsScreen({ role }: { role: "admin" | "patient" }) {
   const { ready } = useGuard(role);
@@ -47,6 +48,7 @@ export function NotificationsScreen({ role }: { role: "admin" | "patient" }) {
     >
       {loading ? <Loading /> : (
         <ScrollView contentContainerStyle={styles.scroll}>
+          {role === "patient" && <WhatsAppPreferences />}
           {list.length === 0 ? <EmptyState icon="bell" title="Tudo em dia" subtitle="Você não tem novas notificações." /> : list.map((n) => (
             <Pressable key={n.id} testID={`notif-${n.id}`} onPress={() => readOne(n)}>
               <Card style={[styles.card, !n.read && styles.unreadCard]}>

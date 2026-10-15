@@ -12,8 +12,8 @@ import { Select } from "@/src/components/Select";
 import { ProgressChart } from "@/src/components/ProgressChart";
 import { useGuard } from "@/src/hooks/useGuard";
 import { api, Patient, Assessment, Evolution, Exercise, Payment, Appointment } from "@/src/api/client";
-import { colors, spacing, radii, statusColors, payStatusColors, areaLabel } from "@/src/theme/tokens";
-import { fmtBRL, fmtDate, fmtDateTime, ageFrom } from "@/src/utils/format";
+import { colors, spacing, statusColors, payStatusColors, areaLabel } from "@/src/theme/tokens";
+import { fmtBRL, fmtDate, fmtDateTime, ageFrom, parseBRLInput } from "@/src/utils/format";
 
 const TABS = [
   { key: "dados", label: "Dados" },
@@ -489,15 +489,23 @@ function PaymentModal({ visible, onClose, pid, area, onSaved }: { visible: boole
   const [ar, setAr] = useState<"fisio" | "pilates">(area === "pilates" ? "pilates" : "fisio");
   const [due, setDue] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const save = async () => {
+    const parsedAmount = parseBRLInput(amount);
+    if (parsedAmount === null || !Number.isFinite(parsedAmount)) {
+      setError("Informe um valor válido, por exemplo 125,50.");
+      return;
+    }
+    setError("");
     setBusy(true);
-    try { await api.createPayment({ patient_id: pid, area: ar, description: desc, amount: parseFloat(amount || "0"), status: "pendente", due_date: due || null }); onSaved(); setDesc(""); setAmount(""); setDue(""); } catch {}
+    try { await api.createPayment({ patient_id: pid, area: ar, description: desc, amount: parsedAmount, status: "pendente", due_date: due || null }); onSaved(); setDesc(""); setAmount(""); setDue(""); }
+    catch (e: any) { setError(e?.message || "Não foi possível registrar o pagamento."); }
     finally { setBusy(false); }
   };
   return (
     <FormModal visible={visible} onClose={onClose} title="Novo pagamento" testID="payment-modal" footer={<Button title="Registrar pagamento" onPress={save} loading={busy} testID="save-payment" />}>
       <Field label="Descrição"><Input testID="pay-desc" value={desc} onChangeText={setDesc} placeholder="Ex.: Pacote 10 sessões" /></Field>
-      <Field label="Valor (R$)"><Input testID="pay-amount" value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="0,00" /></Field>
+      <Field label="Valor (R$)"><Input testID="pay-amount" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0,00" /></Field>
       <Field label="Área">
         <View style={{ flexDirection: "row", gap: spacing.sm }}>
           <Chip label="Fisioterapia" active={ar === "fisio"} onPress={() => setAr("fisio")} testID="pay-area-fisio" />
@@ -505,6 +513,7 @@ function PaymentModal({ visible, onClose, pid, area, onSaved }: { visible: boole
         </View>
       </Field>
       <Field label="Vencimento (AAAA-MM-DD)"><Input testID="pay-due" value={due} onChangeText={setDue} placeholder="2026-01-31" /></Field>
+      {error ? <Text testID="payment-error" accessibilityLiveRegion="polite" style={styles.err}>{error}</Text> : null}
     </FormModal>
   );
 }

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: ace-fisio-partner-demo
+    runtime: docker
+    plan: free
+    region: virginia
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    autoDeployTrigger: off
+    envVars:
+      - key: DB_NAME
+        value: ace_fisio_partner_demo
+      - key: SEED_DEMO
+        value: "false"
+      - key: MONGO_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true

@@ -8,6 +8,7 @@ import {
   TextInput,
   TextInputProps,
   ViewStyle,
+  StyleProp,
   ScrollView,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
@@ -61,7 +62,7 @@ export function Button({
   );
 }
 
-export function Card({ children, style, testID }: { children: React.ReactNode; style?: ViewStyle; testID?: string }) {
+export function Card({ children, style, testID }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; testID?: string }) {
   return (
     <View testID={testID} style={[styles.card, style]}>
       {children}

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 import pytest
 import requests
 
-BASE_URL = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/") if "EXPO_PUBLIC_BACKEND_URL" in os.environ else "https://ace-scheduler.preview.emergentagent.com"
+BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "http://localhost:8000").rstrip("/")
 API = f"{BASE_URL}/api"
 
 ADMIN_FISIO = ("fisio@demo.com", "Demo123!")
@@ -216,10 +216,10 @@ class TestAppointments:
         assert r.status_code == 400
         assert "12 horas" in r.json().get("detail", "")
 
-    def test_patient_can_book_beyond_12h(self, patient_auth):
+    def test_patient_can_book_beyond_12h(self, patient_auth, fisio_auth):
         h, u = patient_auth
         dt = datetime.now() + timedelta(hours=48)
-        body = {"patient_id": u["patient_id"], "area": "fisio", "procedure": "TEST Patient",
+        body = {"patient_id": u["patient_id"], "professional_id": fisio_auth[1]["id"], "area": "fisio", "procedure": "TEST Patient",
                 "date": dt.date().isoformat(), "time": "22:37", "duration_min": 30}
         r = requests.post(f"{API}/appointments", headers=h, json=body)
         assert r.status_code == 200, r.text
@@ -237,9 +237,11 @@ class TestAppointments:
                 "professional_id": u["id"]}
         r1 = requests.post(f"{API}/appointments", headers=h, json=base)
         assert r1.status_code == 200
-        r2 = requests.post(f"{API}/appointments", headers=h, json=base)
-        assert r2.status_code == 400
-        requests.delete(f"{API}/appointments/{r1.json()['id']}", headers=h)
+        try:
+            r2 = requests.post(f"{API}/appointments", headers=h, json=base)
+            assert r2.status_code == 409
+        finally:
+            requests.delete(f"{API}/appointments/{r1.json()['id']}", headers=h)
 
     def test_list_appointments_filters(self, fisio_auth):
         h, _ = fisio_auth
