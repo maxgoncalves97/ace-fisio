@@ -2,22 +2,27 @@
 
 ## Current deployment status (16 October 2026)
 
-The free service `srv-db8m230473hc73alum10` has been created at
-https://ace-fisio-partner-demo.onrender.com. Its first Linux Docker build passed,
-but application startup failed because the Atlas TLS connection was rejected.
-The same saved MongoDB connection works from the development computer. Atlas
-network access is the likely cause; this has not yet been verified by changing
-the access list. The preview is **not yet ready for partner testing**.
+The free service `srv-db8m230473hc73alum10` is live at
+https://ace-fisio-partner-demo.onrender.com. Deployment
+`dep-db8m51jl550s73eh3p3g` passed after the Atlas network access entries were
+added. Public HTTPS checks passed for database health, professional/patient
+logins and dashboards, deep links, PWA assets, cache headers and rejection of the
+local demo password. Four public Chrome browser checks also passed: desktop and
+Pixel 7 phone emulation, each with professional and patient login, dashboard
+rendering and session persistence after refresh. Phone layouts had no horizontal
+overflow. These are browser emulation checks, not physical iPhone/Android tests.
+Partners can now open the link from their phones.
 
 Render reports these outbound network ranges for this service:
 
 - `74.220.49.0/24`
 - `74.220.57.0/24`
 
-Add those separately to the existing Atlas project's Network Access list, retaining
-existing entries. Then run `backend/venv/Scripts/python.exe backend/render_preview.py
---deploy`, wait for a live deployment, and run `backend/venv/Scripts/python.exe
-backend/check_remote.py`. These are shared Render ranges, not dedicated IPs.
+Those entries are now active in the existing Atlas project's Network Access list.
+They are shared Render ranges, not dedicated IPs. For later deployments run
+`backend/venv/Scripts/python.exe backend/render_preview.py --deploy`, wait for a
+live deployment, then run `backend/venv/Scripts/python.exe backend/check_remote.py`.
+Read-only browser login checks: `node frontend/scripts/check-remote-ui.js`.
 Use `render_preview.py --network` to retrieve current ranges, `--logs` for
 redacted recent logs. Existing Atlas credentials do not grant Atlas administration
 access; adding the access-list entries requires the Atlas account owner.

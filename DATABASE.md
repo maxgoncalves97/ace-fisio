@@ -16,13 +16,14 @@ password is stored locally as `PARTNER_TEST_PASSWORD` in ignored
 `backend/.env.partner`; it is not the publicly displayed local-demo password.
 Do not commit or publish this file.
 
-For the future hosted partner API, set `DB_NAME=ace_fisio_partner_demo`,
+The hosted partner API uses `DB_NAME=ace_fisio_partner_demo`,
 `SEED_DEMO=false`, and use the separate `JWT_SECRET_KEY` from `.env.partner`.
 Use the existing `MONGO_URL` as a backend-only hosting secret. Do not run the
 local test runner on the partner environment. The hosting service must also be
-allowed through Atlas network access; this has not yet been configured. This is
+allowed through Atlas network access; the Render ranges are now configured. This is
 database-name separation on the same cluster with the existing credential, not
-separate Atlas users or infrastructure. No hosted application is deployed yet.
+separate Atlas users or infrastructure. The partner preview is live at
+https://ace-fisio-partner-demo.onrender.com; see RENDER_SETUP.md for verification.
 
 | Collection | Ownership / key data |
 | --- | --- |
