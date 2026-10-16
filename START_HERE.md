@@ -67,7 +67,7 @@ For implementation gaps and which workflows are automated, read
 | Hosting | One **free** Docker web service, Virginia; PWA and FastAPI on the same HTTPS origin |
 | Hosting configuration | `Dockerfile`, `.dockerignore`, `render.yaml`, `backend/hosted.py` |
 | Automatic deployment | Off; pushing code does not automatically update the public app |
-| Last verified live deployment | `dep-db8m51jl550s73eh3p3g`, source commit `41a4c3a` |
+| Last verified live deployment | `dep-db8vr1on74is73d0vu40`, source commit `42e5ae3` (mobile logout and type-first booking) |
 | Partner database | `ace_fisio_partner_demo` on the existing MongoDB Atlas cluster |
 | Automated/local UI test database | `ace_fisio_ui_test` on that cluster |
 | Original configured database | Preserved; not used for partner testing |

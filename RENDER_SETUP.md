@@ -4,12 +4,16 @@
 
 The free service `srv-db8m230473hc73alum10` is live at
 https://ace-fisio-partner-demo.onrender.com. Deployment
-`dep-db8m51jl550s73eh3p3g` passed after the Atlas network access entries were
-added. Public HTTPS checks passed for database health, professional/patient
+`dep-db8vr1on74is73d0vu40` (source `42e5ae3`) is live with mobile header logout and
+type-first patient booking. All 30 local desktop/mobile browser regression
+checks, TypeScript and focused lint passed before deployment. The earlier Atlas
+connection issue was fixed by adding the network access entries below.
+Public HTTPS checks passed for database health, professional/patient
 logins and dashboards, deep links, PWA assets, cache headers and rejection of the
 local demo password. Four public Chrome browser checks also passed: desktop and
 Pixel 7 phone emulation, each with professional and patient login, dashboard
-rendering and session persistence after refresh. Phone layouts had no horizontal
+rendering, session persistence after refresh, direct logout and both patient
+booking-type choices. Phone layouts had no horizontal
 overflow. These are browser emulation checks, not physical iPhone/Android tests.
 Partners can now open the link from their phones.
 
