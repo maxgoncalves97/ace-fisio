@@ -3,6 +3,11 @@
 Saved on 16 October 2026. This is the handoff for the existing setup; you do not
 need to recreate hosting or the databases after logging off.
 
+The user has authorized committing and pushing completed current and future
+project changes to the existing GitHub repository. This standing preference is
+recorded in `AGENTS.md`. Continue on the deployment branch; uploading source does
+not automatically deploy it to Render.
+
 ## Test on a phone (no installation required)
 
 1. Open **https://ace-fisio-partner-demo.onrender.com** in Safari, Chrome or

@@ -3,6 +3,7 @@
 # IDE and editors
 .idea/
 .vscode/
+.serena/
 
 # Dependencies
 node_modules/
