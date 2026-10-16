@@ -2,12 +2,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium, devices, expect } = require('@playwright/test');
+const { parse } = require('dotenv');
 const baseURL = 'https://ace-fisio-partner-demo.onrender.com';
 
 (async () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../../backend/.env.partner'), 'utf8');
-  const match = source.match(/^PARTNER_TEST_PASSWORD=['"]?([A-Za-z0-9_-]+)['"]?\r?$/m);
-  if (!match) throw new Error('Local partner test password is missing.');
+  const password = parse(source).PARTNER_TEST_PASSWORD;
+  if (!password) throw new Error('Local partner test password is missing.');
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     for (const mobile of [false, true]) {
@@ -20,7 +21,7 @@ const baseURL = 'https://ace-fisio-partner-demo.onrender.com';
           await page.goto('/login');
           await expect(page.getByTestId('demo-fill-fisio@demo.com')).toHaveCount(0);
           await page.getByTestId('login-email-input').fill(email);
-          await page.getByTestId('login-password-input').fill(match[1]);
+          await page.getByTestId('login-password-input').fill(password);
           await page.getByTestId('login-submit-button').click();
           await expect(page).toHaveURL(new RegExp('/' + area + '/dashboard$'), { timeout: 30000 });
           await page.reload();

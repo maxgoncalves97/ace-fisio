@@ -81,6 +81,18 @@ users or clusters. This is a demo environment with documented product gaps.
 
 ## Where private configuration is saved
 
+To change the shared partner test password later, edit only
+`PARTNER_TEST_PASSWORD` in `backend/.env.partner`, save, then run:
+
+```text
+backend\venv\Scripts\python.exe backend\sync_partner_password.py
+```
+
+This explicitly updates only the three named partner demo accounts and verifies
+their public logins. Editing the file alone does not update MongoDB. No Render
+redeployment is needed. The saved password was synced and all three hosted logins
+verified on 16 October 2026.
+
 These files remain local and are ignored by Git. Their secret values are
 deliberately absent from this guide and GitHub.
 
