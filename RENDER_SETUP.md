@@ -1,5 +1,16 @@
 # Free partner preview on Render
 
+**Currently suspended intentionally (16 October 2026).** The user requested a
+temporary shutdown. Render reports `suspended`; both local web/API servers are
+stopped. Database records and configuration were preserved. Atlas has not been
+paused; no Atlas administrative credential is available. Free Atlas clusters
+cannot be manually paused and auto-pause after 30 days of inactivity.
+
+When asked to resume: `backend/venv/Scripts/python.exe backend/render_preview.py
+--resume`. Use `--suspend` for a later temporary shutdown. Check the suspension
+state separately from the latest deployment status: an old deployment can still
+show `live` while its service is suspended.
+
 ## Current deployment status (16 October 2026)
 
 The free service `srv-db8m230473hc73alum10` is live at

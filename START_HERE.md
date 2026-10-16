@@ -1,5 +1,23 @@
 # Resume ACE Fisio and test it
 
+**Current status: intentionally suspended at the user's request on 16 October
+2026.** Render is suspended and the local API/preview servers are stopped. The
+public link will not wake automatically while suspended. All data/configuration
+is preserved. Atlas itself has not been paused: database credentials do not grant
+Atlas administration access. Free Atlas clusters cannot be manually paused and
+auto-pause after 30 days of inactivity.
+
+To restart the hosted app (when requested), run from this repository:
+
+```text
+backend\venv\Scripts\python.exe backend\render_preview.py --resume
+```
+
+Wait for Render to become ready, then use the existing public link and accounts.
+If Atlas has auto-paused, resume that cluster in Atlas first. Local testing still
+restarts with `npm --prefix frontend run test:ui`. The rest of this guide describes
+the preserved setup and normal testing workflow once resumed.
+
 Saved on 16 October 2026. This is the handoff for the existing setup; you do not
 need to recreate hosting or the databases after logging off.
 

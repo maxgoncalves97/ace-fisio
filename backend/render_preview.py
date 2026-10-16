@@ -11,6 +11,8 @@ REPO = "https://github.com/maxgoncalves97/ace-fisio"
 
 
 def main():
+    if sum(flag in sys.argv for flag in ("--create", "--deploy", "--suspend", "--resume")) > 1:
+        raise SystemExit("Choose only one action at a time.")
     config = dotenv_values(ROOT / ".env.render")
     token = config.get("RENDER_API_KEY")
     if not token:
@@ -64,6 +66,11 @@ def main():
         raise SystemExit("Existing service does not match the free preview configuration; no changes made.")
     service_id = service["id"]
     print("Service:", service_id, "Plan:", details["plan"], "URL:", details.get("url", "pending"))
+    for action in ("suspend", "resume"):
+        if "--" + action in sys.argv:
+            call("POST", f"/services/{service_id}/{action}")
+            service = call("GET", f"/services/{service_id}")
+    print("Suspension state:", service.get("suspended", "unknown"))
     if "--network" in sys.argv:
         print("Outbound network ranges:", call("GET", f"/services/{service_id}/outbound-ips"))
     if "--deploy" in sys.argv:
