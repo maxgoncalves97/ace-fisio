@@ -20,6 +20,7 @@ export function FormModal({
   children,
   footer,
   testID,
+  centered = false,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -27,13 +28,14 @@ export function FormModal({
   children: React.ReactNode;
   footer?: React.ReactNode;
   testID?: string;
+  centered?: boolean;
 }) {
   const { width } = useWindowDimensions();
-  const wide = width >= 720;
+  const wide = centered || width >= 720;
 
   return (
     <RNModal visible={visible} transparent animationType={wide ? "fade" : "slide"} onRequestClose={onClose}>
-      <View style={[styles.backdrop, wide && styles.backdropCenter]}>
+      <View style={[styles.backdrop, wide && styles.backdropCenter, centered && { backgroundColor: "rgba(24,28,26,0.2)" }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} testID={`${testID}-backdrop`} />
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -41,7 +43,7 @@ export function FormModal({
         >
           <View style={styles.handleRow}>
             <Text style={styles.title} testID={`${testID}-title`}>{title}</Text>
-            <Pressable onPress={onClose} testID={`${testID}-close`} hitSlop={10}>
+            <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Fechar" testID={`${testID}-close`} hitSlop={10}>
               <Feather name="x" size={22} color={colors.onSurfaceTertiary} />
             </Pressable>
           </View>

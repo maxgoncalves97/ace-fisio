@@ -137,8 +137,8 @@ Run from the same repository directory:
 npm --prefix frontend run test:all
 ```
 
-This runs the local suite: 17 scheduling unit tests, 36 live backend checks and
-30 desktop/mobile browser checks (83 total). The earlier 79-case full suite passed;
+This runs the local suite: 21 scheduling unit tests, 36 live backend checks and
+32 desktop/mobile browser checks (89 total). The earlier 79-case full suite passed;
 the expanded browser suite adds direct patient logout and booking-type filtering.
 The full suite is not run against the hosted partner database. It creates synthetic test
 fixtures in the separate local test database. Backend checks need Atlas access
@@ -171,6 +171,15 @@ logout remains in the sidebar. Patient booking starts with **Fisioterapia** or
 **Aula de Pilates**, then shows corresponding procedures, professionals and
 services before selecting a date/time. Returning to change the type clears
 earlier selections. Refresh/reopen the site after a deployment to load changes.
+
+In **Configurações → Profissionais e disponibilidade online**, an admin can
+select a clinic professional, toggle whether patients may select them, and set
+weekday hours or split periods for breaks. For Friday until 15:00, edit Sexta's
+end time to 15:00 and save. A 60-minute session may then start no later than
+14:00. Disable a day for no appointments, or remove/add periods to model breaks.
+Unchanged days retain their weekly defaults. These settings affect new bookings;
+existing appointments are preserved. Patient professional selection uses a
+centered popup; unavailable times are visible but crossed out and disabled.
 
 1. Continue on `deploy/free-render-partner-demo`; edit, verify, commit and push
    intended changes to that branch. Do not publish private `.env` files.

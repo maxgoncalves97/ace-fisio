@@ -158,8 +158,8 @@ npm --prefix frontend run test:all
 ```
 
 This builds the local web app, starts/reuses the isolated test API and preview,
-runs the 36 live API checks and 17 isolated Python tests, and executes 15 browser
-workflows in both desktop Chrome and mobile Chrome emulation (30 browser cases).
+runs the 36 live API checks and 21 isolated Python tests, and executes 16 browser
+workflows in both desktop Chrome and mobile Chrome emulation (32 browser cases).
 It requires Google Chrome installed, `frontend/node_modules`, `backend/venv`, and
 the existing reachable MongoDB configuration. No additional browser download or
 manual demo login is needed. No API responses are mocked.

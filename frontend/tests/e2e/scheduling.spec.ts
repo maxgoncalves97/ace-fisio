@@ -92,6 +92,54 @@ test('SCHED-05 booking asks for type first and filters services when switching a
   }
 });
 
+test('SCHED-06 admin Friday hours and breaks govern crossed-out slots and professional visibility', async ({ page, clinic }) => {
+  const patient = await clinic.createPatient();
+  await login(page, clinic.professionalEmail);
+  await nav(page, 'settings');
+  await page.getByTestId('availability-day-4-end-0').fill('12:00');
+  await page.getByTestId('availability-day-4-add').click();
+  await page.getByTestId('availability-day-4-end-1').fill('15:00');
+  const save = page.waitForResponse(r => r.url() === API + '/professional-availability' && r.request().method() === 'PUT');
+  await page.getByTestId('save-availability').click();
+  const saved = await save; expect(saved.ok()).toBeTruthy();
+  const schedule = await saved.json();
+  await page.reload();
+  await expect(page.getByTestId('availability-day-4-end-1')).toHaveValue('15:00');
+  await page.getByTestId((page.viewportSize()?.width || 0) >= 900 ? 'sidebar-logout' : 'header-logout').click();
+  await expect(page).toHaveURL(/\/login$/);
+  await login(page, patient.email);
+  await nav(page, 'booking');
+  await page.getByTestId('book-area-fisio').click();
+  await page.getByTestId('book-type-next').click();
+  await page.locator('[data-testid^="book-proc-"]').first().click();
+  await page.getByTestId('book-professional').click();
+  const panel = await page.getByTestId('book-professional-modal-title').locator('..').locator('..').boundingBox();
+  expect(panel).not.toBeNull();
+  expect(panel!.y).toBeGreaterThan(0);
+  expect(panel!.y + panel!.height).toBeLessThan(page.viewportSize()!.height);
+  await page.getByTestId(`book-professional-option-${clinic.professionalId}`).click();
+  await page.getByTestId('step1-next').click();
+  let offset = 7;
+  while (new Date(ymd(offset) + 'T12:00:00').getDay() !== 5) offset++;
+  const date = ymd(offset);
+  await page.getByTestId(`book-date-${date}`).click();
+  await expect(page.getByTestId('book-time-14:00')).not.toHaveAttribute('aria-disabled', 'true');
+  for (const time of ['12:00', '14:30', '15:00']) {
+    await expect(page.getByTestId(`book-time-${time}`)).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByTestId(`book-time-${time}`).getByText(time, { exact: true })).toHaveCSS('text-decoration-line', 'line-through');
+  }
+  const hidden = await clinic.admin.put(API + '/professional-availability', { data: { ...schedule, booking_enabled: false } });
+  expect(hidden.ok()).toBeTruthy();
+  const patientApi = await clinic.patientApi(patient);
+  const bypass = await patientApi.post(API + '/appointments', { data: { patient_id: patient.id, professional_id: clinic.professionalId, date, time: '14:00' } });
+  expect(bypass.status()).toBe(400);
+  await page.goto('/patient/booking');
+  await page.getByTestId('book-area-fisio').click();
+  await page.getByTestId('book-type-next').click();
+  await page.getByTestId('book-professional').click();
+  await expect(page.getByTestId(`book-professional-option-${clinic.professionalId}`)).toHaveCount(0);
+});
+
 test('SCHED-02 stale slot is rejected with visible error and no duplicate booking', async ({ page, clinic }) => {
   const patient = await clinic.createPatient();
   const competitor = await clinic.createPatient();

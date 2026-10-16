@@ -29,6 +29,14 @@ const baseURL = 'https://ace-fisio-partner-demo.onrender.com';
           await expect(page.getByTestId('login-email-input')).toHaveCount(0);
           await expect(area === 'admin' ? page.locator('[data-testid^="kpi-"]').first() : page.getByTestId('dashboard-book')).toBeVisible({ timeout: 15000 });
           if (mobile) expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+          if (area === 'admin') {
+            await page.goto('/admin/settings');
+            await expect(page.getByTestId('booking-enabled')).toBeVisible();
+            await expect(page.getByTestId('availability-day-4')).toBeVisible();
+            await page.getByTestId('availability-professional').click();
+            await expect(page.getByTestId('availability-professional-modal-title')).toBeVisible();
+            await page.getByTestId('availability-professional-modal-close').click();
+          }
           if (area === 'patient') {
             await page.goto('/patient/booking');
             await expect(page.getByText('O que você deseja agendar?')).toBeVisible();
@@ -40,6 +48,20 @@ const baseURL = 'https://ace-fisio-partner-demo.onrender.com';
               await expect(page.locator('[data-testid^="book-proc-"]').first()).toBeVisible();
               if (kind === 'fisio') await page.getByTestId('book-service-back').click();
             }
+            await page.getByTestId('book-professional').click();
+            const box = await page.getByTestId('book-professional-modal-title').locator('..').locator('..').boundingBox();
+            expect(box.y).toBeGreaterThan(0);
+            expect(box.y + box.height).toBeLessThan(page.viewportSize().height);
+            await page.locator('[data-testid^="book-professional-option-"]').first().click();
+            await page.locator('[data-testid^="book-proc-"]').first().click();
+            if (await page.getByTestId('book-service').count()) {
+              await page.getByTestId('book-service').click();
+              await page.locator('[data-testid^="book-service-option-"]').first().click();
+            }
+            await page.getByTestId('step1-next').click();
+            await page.locator('[data-testid^="book-date-"]').first().click();
+            await expect(page.getByTestId('book-time-07:00')).toHaveAttribute('aria-disabled', 'true');
+            await expect(page.getByTestId('book-time-07:00').getByText('07:00', { exact: true })).toHaveCSS('text-decoration-line', 'line-through');
           }
           await page.getByTestId(mobile ? 'header-logout' : 'sidebar-logout').click();
           await expect(page).toHaveURL(/\/login$/);

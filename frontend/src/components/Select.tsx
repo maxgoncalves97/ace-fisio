@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import { Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { FormModal } from "@/src/components/FormModal";
 import { colors, spacing, radii } from "@/src/theme/tokens";
@@ -13,6 +13,7 @@ export function Select({
   placeholder = "Selecione",
   title = "Selecione",
   testID,
+  popup = false,
 }: {
   value?: string | null;
   options: Option[];
@@ -20,19 +21,20 @@ export function Select({
   placeholder?: string;
   title?: string;
   testID?: string;
+  popup?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
 
   return (
     <>
-      <Pressable testID={testID} onPress={() => setOpen(true)} style={styles.trigger}>
+      <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={title} onPress={() => setOpen(true)} style={styles.trigger}>
         <Text style={[styles.triggerText, !selected && styles.placeholder]} numberOfLines={1}>
           {selected ? selected.label : placeholder}
         </Text>
         <Feather name="chevron-down" size={18} color={colors.onSurfaceTertiary} />
       </Pressable>
-      <FormModal visible={open} onClose={() => setOpen(false)} title={title} testID={`${testID}-modal`}>
+      <FormModal centered={popup} visible={open} onClose={() => setOpen(false)} title={title} testID={`${testID}-modal`}>
         <ScrollView style={{ maxHeight: 420 }}>
           {options.length === 0 ? (
             <Text style={styles.emptyText}>Nenhuma opção disponível.</Text>

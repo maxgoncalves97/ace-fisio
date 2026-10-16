@@ -67,7 +67,7 @@ export interface Procedure {
 export interface ProfessionalService {
   id: string; professional_id: string; name: string; area: Area; duration_min: number; price_cents: number;
 }
-export interface Availability { weekdays: number[]; start: string; end: string; }
+export interface Availability { weekdays: number[]; start: string; end: string; booking_enabled?: boolean; day_overrides?: Record<string, {start: string; end: string}[]>; }
 
 export interface Appointment {
   id: string;
@@ -249,6 +249,6 @@ export const api = {
   listProfessionals: () => req<User[]>("/professionals"),
   listProfessionalServices: () => req<ProfessionalService[]>("/professional-services"),
   createProfessionalService: (body: Omit<ProfessionalService, "id" | "professional_id">) => req<ProfessionalService>("/professional-services", { method: "POST", body: JSON.stringify(body) }),
-  getAvailability: () => req<Availability>("/professional-availability"),
-  saveAvailability: (body: Availability) => req<Availability>("/professional-availability", { method: "PUT", body: JSON.stringify(body) }),
+  getAvailability: (professionalId?: string) => req<Availability>(`/professional-availability${professionalId ? `?professional_id=${encodeURIComponent(professionalId)}` : ""}`),
+  saveAvailability: (body: Availability, professionalId?: string) => req<Availability>(`/professional-availability${professionalId ? `?professional_id=${encodeURIComponent(professionalId)}` : ""}`, { method: "PUT", body: JSON.stringify(body) }),
 };

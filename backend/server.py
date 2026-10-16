@@ -228,10 +228,17 @@ class ProfessionalServiceIn(BaseModel):
     price_cents: int = Field(default=0, ge=0)
 
 
+class TimeWindow(BaseModel):
+    start: str
+    end: str
+
+
 class AvailabilityIn(BaseModel):
     weekdays: List[int] = Field(default_factory=lambda: [0, 1, 2, 3, 4])
     start: str = "08:00"
     end: str = "18:00"
+    booking_enabled: bool = True
+    day_overrides: dict[str, List[TimeWindow]] = Field(default_factory=dict)
 
 
 async def validate_availability(prof_id: str, dt: datetime, duration: int):
@@ -239,7 +246,10 @@ async def validate_availability(prof_id: str, dt: datetime, duration: int):
     if not schedule:
         return  # Legacy calendars remain usable until working hours are configured.
     end = dt + timedelta(minutes=duration)
-    if dt.weekday() not in schedule["weekdays"] or dt.strftime("%H:%M") < schedule["start"] or end.date() != dt.date() or end.strftime("%H:%M") > schedule["end"]:
+    windows = schedule.get("day_overrides", {}).get(str(dt.weekday()))
+    if windows is None:
+        windows = [{"start": schedule["start"], "end": schedule["end"]}] if dt.weekday() in schedule["weekdays"] else []
+    if end.date() != dt.date() or not any(dt.strftime("%H:%M") >= w["start"] and end.strftime("%H:%M") <= w["end"] for w in windows):
         raise HTTPException(400, "Horário fora da disponibilidade do profissional")
 
 
@@ -275,6 +285,9 @@ async def build_appointment(body: AppointmentIn, user: dict, dt: datetime, serie
     prof = await db.users.find_one({"id": prof_id, "role": {"$in": ["admin_fisio", "admin_pilates"]}}, {"_id": 0, "password_hash": 0})
     if not prof or prof.get("clinic_id", "default") != cid:
         raise HTTPException(400, "Profissional inválido")
+    schedule = await db.professional_availability.find_one({"professional_id": prof_id})
+    if user["role"] == "patient" and schedule and not schedule.get("booking_enabled", True):
+        raise HTTPException(400, "Profissional indisponível para agendamento online")
     service = None
     if body.service_id:
         service = await db.professional_services.find_one({"id": body.service_id, "professional_id": prof_id, "clinic_id": cid})
@@ -673,6 +686,9 @@ async def reschedule_appointment(aid: str, body: AppointmentIn, user: AnyUser):
     if not prof or prof.get("clinic_id", "default") != clinic_id(user):
         raise HTTPException(400, "Profissional inválido")
     service_id = body.service_id or a.get("service_id")
+    schedule = await db.professional_availability.find_one({"professional_id": prof_id})
+    if user["role"] == "patient" and schedule and not schedule.get("booking_enabled", True):
+        raise HTTPException(400, "Profissional indisponível para agendamento online")
     service = None
     if service_id:
         service = await db.professional_services.find_one({"id": service_id, "professional_id": prof_id, "clinic_id": clinic_id(user)})
@@ -940,7 +956,9 @@ async def list_professionals(admin: AdminUser):
 @api_router.get("/booking/professionals")
 async def booking_professionals(user: AnyUser):
     docs = await list_professionals(user)
-    return [{"id": d["id"], "name": d.get("name", ""), "role": d["role"]} for d in docs]
+    schedules = await db.professional_availability.find({"clinic_id": clinic_id(user)}, {"_id": 0}).to_list(500)
+    hidden = {s["professional_id"] for s in schedules if not s.get("booking_enabled", True)}
+    return [{"id": d["id"], "name": d.get("name", ""), "role": d["role"]} for d in docs if d["id"] not in hidden]
 
 
 @api_router.get("/booking/slots")
@@ -948,6 +966,9 @@ async def booking_slots(user: AnyUser, professional_id: str, date: str, duration
     prof = await db.users.find_one({"id": professional_id, "role": {"$in": ["admin_fisio", "admin_pilates"]}})
     if not prof or prof.get("clinic_id", "default") != clinic_id(user):
         raise HTTPException(400, "Profissional inválido")
+    schedule = await db.professional_availability.find_one({"professional_id": professional_id})
+    if user["role"] == "patient" and schedule and not schedule.get("booking_enabled", True):
+        return []
     if service_id:
         service = await db.professional_services.find_one({"id": service_id, "professional_id": professional_id, "clinic_id": clinic_id(user)})
         if not service:
@@ -984,13 +1005,23 @@ async def professional_services(user: AnyUser):
     return await db.professional_services.find({"clinic_id": clinic_id(user)}, {"_id": 0}).to_list(500)
 
 
+async def availability_owner(admin: dict, professional_id: Optional[str]):
+    target = professional_id or admin["id"]
+    professional = await db.users.find_one({"id": target, "role": {"$in": ["admin_fisio", "admin_pilates"]}})
+    if not professional or clinic_id(professional) != clinic_id(admin):
+        raise HTTPException(404, "Profissional não encontrado")
+    return target
+
+
 @api_router.get("/professional-availability")
-async def get_availability(admin: AdminUser):
-    return await db.professional_availability.find_one({"professional_id": admin["id"]}, {"_id": 0}) or AvailabilityIn().model_dump()
+async def get_availability(admin: AdminUser, professional_id: Optional[str] = None):
+    target = await availability_owner(admin, professional_id)
+    return await db.professional_availability.find_one({"professional_id": target}, {"_id": 0}) or AvailabilityIn().model_dump()
 
 
 @api_router.put("/professional-availability")
-async def save_availability(body: AvailabilityIn, admin: AdminUser):
+async def save_availability(body: AvailabilityIn, admin: AdminUser, professional_id: Optional[str] = None):
+    target = await availability_owner(admin, professional_id)
     try:
         start = datetime.strptime(body.start, "%H:%M").strftime("%H:%M")
         end = datetime.strptime(body.end, "%H:%M").strftime("%H:%M")
@@ -998,8 +1029,27 @@ async def save_availability(body: AvailabilityIn, admin: AdminUser):
         raise HTTPException(400, "Use horários HH:mm")
     if start >= end or any(day < 0 or day > 6 for day in body.weekdays):
         raise HTTPException(400, "Disponibilidade inválida")
-    doc = {"professional_id": admin["id"], "clinic_id": clinic_id(admin), "weekdays": sorted(set(body.weekdays)), "start": start, "end": end}
-    await db.professional_availability.update_one({"professional_id": admin["id"]}, {"$set": doc}, upsert=True)
+    overrides = {}
+    for day, windows in body.day_overrides.items():
+        if day not in {str(i) for i in range(7)} or len(windows) > 4:
+            raise HTTPException(400, "Use dias de 0 a 6 e até quatro períodos por dia")
+        normalized = []
+        for window in windows:
+            try:
+                a = datetime.strptime(window.start, "%H:%M").strftime("%H:%M")
+                b = datetime.strptime(window.end, "%H:%M").strftime("%H:%M")
+            except ValueError:
+                raise HTTPException(400, "Use horários HH:mm")
+            if a >= b:
+                raise HTTPException(400, "O fim deve ser depois do início")
+            normalized.append({"start": a, "end": b})
+        normalized.sort(key=lambda w: w["start"])
+        if any(a["end"] > b["start"] for a, b in zip(normalized, normalized[1:])):
+            raise HTTPException(400, "Os períodos não podem se sobrepor")
+        overrides[day] = normalized
+    doc = {"professional_id": target, "clinic_id": clinic_id(admin), "weekdays": sorted(set(body.weekdays)), "start": start, "end": end,
+           "booking_enabled": body.booking_enabled, "day_overrides": overrides}
+    await db.professional_availability.update_one({"professional_id": target}, {"$set": doc}, upsert=True)
     return doc
 
 

@@ -31,7 +31,7 @@ https://ace-fisio-partner-demo.onrender.com; see RENDER_SETUP.md for verificatio
 | users | id, role, clinic_id; missing clinic_id means default |
 | patients | id, clinic_id, optional user_id |
 | professional_services | id, clinic_id, professional_id (users.id), name, area, duration_min, integer price_cents, currency |
-| professional_availability | professional_id, clinic_id, weekdays (Monday=0), start/end clinic-local time |
+| professional_availability | professional_id, clinic_id, weekdays (Monday=0), start/end defaults, booking_enabled, day_overrides (weekday keys 0–6 → up to four start/end periods) |
 | appointments | id, clinic_id, patient_id, professional_id, optional service_id, copied price/duration, series_id, date/time/datetime, individual status |
 | calendar_reservations | unique _id = professional_id + local minute, appointment_id, write owner |
 | notification_preferences | unique user_id, clinic_id, enabled, phone, consent_version, updated_at |
@@ -47,9 +47,15 @@ upserts the default clinic. Recurrence creates 2–52 weekly appointments linked
 UUID. Weekly local wall-clock time is preserved; the patient advance rule uses
 the clinic timezone. Legacy naive timestamps remain compatible.
 
-Availability is opt-in for legacy professionals. Saving no weekdays closes the
-calendar. Slot display uses half-hour starts from 07:00 to 20:00. Holidays, breaks,
-multiple daily shifts, blocked dates and ambiguous/nonexistent DST times remain.
+Availability is opt-in for legacy professionals. Each day override replaces that
+day's default; an empty list closes the day. Multiple non-overlapping periods
+support breaks and different weekday cutoffs. The full appointment must fit
+inside one period. Admin roles can configure any professional in their own
+clinic; patient writes and cross-clinic edits are rejected. `booking_enabled=false`
+hides the professional from patient selection and blocks direct online booking
+and rescheduling. Existing appointments are retained. Slots use half-hour starts
+from 07:00 to 20:00; unavailable starts are crossed out and disabled in the UI.
+Holidays/date-specific exceptions and ambiguous/nonexistent DST times remain.
 
 Unique minute reservations prevent concurrent overlapping booking writes across
 workers. Every series date is checked before reservations; failed normal writes

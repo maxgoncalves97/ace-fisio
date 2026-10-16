@@ -135,7 +135,7 @@ export default function Booking() {
                 </Card>
               </Pressable>
             ))}
-            <Select title="Profissional" testID="book-professional" placeholder="Selecione o profissional" value={professionalId} onChange={id => { setProfessionalId(id); if (serviceId) setProcedure(""); setServiceId(""); setDateYmd(""); setTime(""); }}
+            <Select popup title="Escolha o profissional" testID="book-professional" placeholder="Selecione o profissional" value={professionalId} onChange={id => { setProfessionalId(id); if (serviceId) setProcedure(""); setServiceId(""); setDateYmd(""); setTime(""); }}
               options={relevantProfessionals.map(p => ({ label: p.name, value: p.id }))} />
             {relevantProfessionals.length === 0 && <Text style={styles.help}>Nenhum profissional disponível para este tipo de atendimento.</Text>}
             {relevantServices.length > 0 && <Select title="Serviço e preço" testID="book-service" placeholder="Selecione o serviço" value={serviceId}
@@ -166,13 +166,15 @@ export default function Booking() {
               })}
             </View>
             <Text style={[styles.stepTitle, { marginTop: spacing.lg }]}>Horário</Text>
+            <Text style={styles.help}>Horários de São Paulo. Horários riscados estão indisponíveis para o profissional e a duração escolhidos.</Text>
             {slotsLoading ? <Loading /> : dateYmd && slots.length === 0 ? <Text style={styles.help}>Nenhum horário disponível nesta data.</Text> : null}
             <View style={styles.timeGrid}>
-              {slots.map((t) => {
+              {(dateYmd && !slotsLoading ? Array.from({ length: 27 }, (_, i) => `${String(7 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`) : []).map((t) => {
                 const active = t === time;
+                const unavailable = !slots.includes(t);
                 return (
-                  <Pressable key={t} testID={`book-time-${t}`} onPress={() => setTime(t)} style={[styles.timeCell, active && styles.timeCellActive]}>
-                    <Text style={[styles.timeText, active && styles.dateActiveText]}>{t}</Text>
+                  <Pressable key={t} testID={`book-time-${t}`} disabled={unavailable} accessibilityRole="button" accessibilityLabel={`${t}${unavailable ? ", indisponível" : ", disponível"}`} accessibilityState={{ disabled: unavailable }} onPress={() => setTime(t)} style={[styles.timeCell, active && styles.timeCellActive, unavailable && { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+                    <Text style={[styles.timeText, active && styles.dateActiveText, unavailable && { textDecorationLine: "line-through", color: colors.onSurfaceTertiary }]}>{t}</Text>
                   </Pressable>
                 );
               })}

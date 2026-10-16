@@ -173,6 +173,42 @@ def test_availability_applies_to_every_occurrence(db):
     assert not db.appointments.docs
 
 
+def test_friday_cutoff_and_split_periods(db):
+    schedule = {"professional_id": "therapist", "weekdays": [0, 1, 2, 3, 4], "start": "08:00", "end": "18:00",
+                "day_overrides": {"4": [{"start": "08:00", "end": "12:00"}, {"start": "13:00", "end": "15:00"}], "0": []}}
+    db.professional_availability.docs.append(schedule)
+    friday = datetime(2030, 6, 7)
+    asyncio.run(s.validate_availability("therapist", friday.replace(hour=14), 60))
+    for start in (friday.replace(hour=14, minute=30), friday.replace(hour=15), friday.replace(hour=11, minute=30), datetime(2030, 6, 3, 9)):
+        with pytest.raises(HTTPException): asyncio.run(s.validate_availability("therapist", start, 60))
+
+
+def test_admin_manages_another_professional_and_rejects_overlap(db):
+    db.users.docs.append({"id": "other", "role": "admin_pilates"})
+    value = s.AvailabilityIn(day_overrides={"4": [{"start": "08:00", "end": "15:00"}]}, booking_enabled=False)
+    saved = asyncio.run(s.save_availability(value, ADMIN, "other"))
+    assert saved["professional_id"] == "other" and not saved["booking_enabled"]
+    invalid = s.AvailabilityIn(day_overrides={"4": [{"start": "08:00", "end": "13:00"}, {"start": "12:00", "end": "15:00"}]})
+    with pytest.raises(HTTPException): asyncio.run(s.save_availability(invalid, ADMIN, "other"))
+    assert db.professional_availability.docs[0] == saved
+
+
+def test_admin_cannot_configure_other_clinic(db):
+    db.users.docs.append({"id": "other", "role": "admin_pilates", "clinic_id": "other-clinic"})
+    with pytest.raises(HTTPException): asyncio.run(s.save_availability(s.AvailabilityIn(), ADMIN, "other"))
+    assert not db.professional_availability.docs
+
+
+def test_hidden_professional_rejects_direct_patient_booking(db):
+    appointment = asyncio.run(s.create_appointment(body(), ADMIN))
+    db.professional_availability.docs.append({"professional_id": "therapist", "clinic_id": "default", "booking_enabled": False})
+    with pytest.raises(HTTPException) as error: asyncio.run(s.create_appointment(body(), PATIENT))
+    assert "online" in error.value.detail and len(db.appointments.docs) == 1
+    assert asyncio.run(s.booking_slots(PATIENT, "therapist", "2030-06-07", 60, None)) == []
+    assert asyncio.run(s.booking_professionals(PATIENT)) == []
+    with pytest.raises(HTTPException): asyncio.run(s.reschedule_appointment(appointment["id"], body(time="10:00"), PATIENT))
+
+
 def test_consent_default_and_revocation(db):
     async def run():
         assert not (await s.notification_preferences(PATIENT))["enabled"]
