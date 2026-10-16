@@ -4,9 +4,9 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 import { AppShell } from "@/src/components/AppShell";
-import { Card, Button, Chip, Loading } from "@/src/components/ui";
+import { Card, Button, Loading } from "@/src/components/ui";
 import { useGuard } from "@/src/hooks/useGuard";
-import { api, Procedure, Area, User, ProfessionalService } from "@/src/api/client";
+import { api, Procedure, User, ProfessionalService } from "@/src/api/client";
 import { Select } from "@/src/components/Select";
 import { colors, spacing, radii, areaLabel } from "@/src/theme/tokens";
 import { toYMD, WEEKDAYS_SHORT, MONTHS } from "@/src/utils/format";
@@ -15,10 +15,9 @@ export default function Booking() {
   const { ready, user } = useGuard("patient");
   const router = useRouter();
 
-  const [step, setStep] = useState(1);
-  const [patientArea, setPatientArea] = useState<Area>("fisio");
+  const [step, setStep] = useState(0);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
-  const [area, setArea] = useState<"fisio" | "pilates">("fisio");
+  const [area, setArea] = useState<"fisio" | "pilates" | null>(null);
   const [procedure, setProcedure] = useState("");
   const [dateYmd, setDateYmd] = useState<string>("");
   const [time, setTime] = useState<string>("");
@@ -37,6 +36,7 @@ export default function Booking() {
   useEffect(() => {
     let active = true;
     setTime(""); setSlots([]);
+    setSlotsLoading(false);
     if (!professionalId || !dateYmd) return;
     setSlotsLoading(true);
     api.bookingSlots(professionalId, dateYmd, serviceId || undefined).then(s => { if (active) setSlots(s); })
@@ -47,11 +47,6 @@ export default function Booking() {
   useEffect(() => {
     (async () => {
       if (!user?.patient_id) return;
-      try {
-        const p = await api.getPatient(user.patient_id);
-        setPatientArea(p.area);
-        setArea(p.area === "pilates" ? "pilates" : "fisio");
-      } catch {}
       try { setProcedures(await api.listProcedures()); } catch {}
     })();
   }, [user?.patient_id]);
@@ -64,7 +59,15 @@ export default function Booking() {
   }, []);
 
   const procOptions = procedures.filter((p) => p.area === area || p.area === "ambos");
-  const canPickArea = patientArea === "ambos";
+  const relevantProfessionals = professionals.filter(p => {
+    const offered = services.filter(s => s.professional_id === p.id);
+    return offered.length ? offered.some(s => s.area === area || s.area === "ambos") : p.role === (area === "pilates" ? "admin_pilates" : "admin_fisio");
+  });
+  const relevantServices = services.filter(s => s.professional_id === professionalId && (s.area === area || s.area === "ambos"));
+  const chooseArea = (value: "fisio" | "pilates") => {
+    setArea(value); setProcedure(""); setProfessionalId(""); setServiceId("");
+    setDateYmd(""); setTime(""); setSlots([]); setErr(null);
+  };
 
   const confirm = async () => {
     setBusy(true); setErr(null);
@@ -93,39 +96,56 @@ export default function Booking() {
   }
 
   return (
-    <AppShell role="patient" active="booking" title="Agendar atendimento" subtitle={`Passo ${step} de 3`}>
+    <AppShell role="patient" active="booking" title="Agendar atendimento" subtitle={`Passo ${step + 1} de 4`}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.steps}>
-          {[1, 2, 3].map((s) => (
+          {[0, 1, 2, 3].map((s) => (
             <View key={s} style={[styles.stepDot, step >= s && styles.stepDotActive]} />
           ))}
         </View>
 
-        {step === 1 && (
+        {step === 0 && (
+          <View>
+            <Text style={styles.stepTitle}>O que você deseja agendar?</Text>
+            <Text style={styles.help}>Escolha o tipo de atendimento para ver as opções disponíveis.</Text>
+            {([['fisio', 'Fisioterapia', 'Avaliação, reabilitação e sessões de fisioterapia.'], ['pilates', 'Aula de Pilates', 'Aulas e avaliações de Pilates.']] as const).map(([value, label, description]) => (
+              <Pressable key={value} testID={`book-area-${value}`} accessibilityRole="radio" accessibilityState={{ checked: area === value }} onPress={() => chooseArea(value)}>
+                <Card style={[styles.optionCard, area === value && styles.optionCardActive]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.optionText, area === value && styles.optionTextActive]}>{label}</Text>
+                    <Text style={{ color: colors.onSurfaceTertiary, marginTop: spacing.xs }}>{description}</Text>
+                  </View>
+                  <Feather name={area === value ? "check-circle" : "circle"} size={22} color={colors.brandPrimary} />
+                </Card>
+              </Pressable>
+            ))}
+            <Button title="Continuar" disabled={!area} onPress={() => setStep(1)} testID="book-type-next" style={{ marginTop: spacing.lg }} />
+          </View>
+        )}
+
+        {step === 1 && area && (
           <View>
             <Text style={styles.stepTitle}>Serviço</Text>
-            {canPickArea && (
-              <View style={{ flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg }}>
-                <Chip label="Fisioterapia" active={area === "fisio"} onPress={() => { setArea("fisio"); setProcedure(""); setServiceId(""); }} testID="book-area-fisio" />
-                <Chip label="Pilates" active={area === "pilates"} onPress={() => { setArea("pilates"); setProcedure(""); setServiceId(""); }} testID="book-area-pilates" />
-              </View>
-            )}
             <Text style={styles.help}>Selecione o procedimento em {areaLabel[area]}:</Text>
             {procOptions.map((p) => (
-              <Pressable key={p.id} testID={`book-proc-${p.id}`} onPress={() => setProcedure(p.name)}>
+              <Pressable key={p.id} testID={`book-proc-${p.id}`} onPress={() => { setProcedure(p.name); setServiceId(""); }}>
                 <Card style={[styles.optionCard, procedure === p.name && styles.optionCardActive]}>
                   <Text style={[styles.optionText, procedure === p.name && styles.optionTextActive]}>{p.name}</Text>
                   {procedure === p.name && <Feather name="check" size={18} color={colors.brandPrimary} />}
                 </Card>
               </Pressable>
             ))}
-            <Select title="Profissional" testID="book-professional" placeholder="Selecione o profissional" value={professionalId} onChange={id => { setProfessionalId(id); setServiceId(""); }}
-              options={professionals.map(p => ({ label: p.name, value: p.id }))} />
-            {services.some(s => s.professional_id === professionalId) && <Select title="Serviço e preço" testID="book-service" placeholder="Selecione o serviço" value={serviceId}
-              options={services.filter(s => s.professional_id === professionalId && (s.area === area || s.area === "ambos")).map(s => ({ label: `${s.name} · ${s.duration_min} min · R$ ${(s.price_cents / 100).toFixed(2)}`, value: s.id }))}
+            <Select title="Profissional" testID="book-professional" placeholder="Selecione o profissional" value={professionalId} onChange={id => { setProfessionalId(id); if (serviceId) setProcedure(""); setServiceId(""); setDateYmd(""); setTime(""); }}
+              options={relevantProfessionals.map(p => ({ label: p.name, value: p.id }))} />
+            {relevantProfessionals.length === 0 && <Text style={styles.help}>Nenhum profissional disponível para este tipo de atendimento.</Text>}
+            {relevantServices.length > 0 && <Select title="Serviço e preço" testID="book-service" placeholder="Selecione o serviço" value={serviceId}
+              options={relevantServices.map(s => ({ label: `${s.name} · ${s.duration_min} min · R$ ${(s.price_cents / 100).toFixed(2)}`, value: s.id }))}
               onChange={id => { setServiceId(id); const s = services.find(s => s.id === id); if (s) setProcedure(s.name); }} />}
             {err ? <Text style={styles.err}>{err}</Text> : null}
-            <Button title="Continuar" onPress={() => setStep(2)} disabled={!procedure || !professionalId} testID="step1-next" style={{ marginTop: spacing.lg }} />
+            <View style={{ flexDirection: "row", gap: spacing.md, marginTop: spacing.lg }}>
+              <Button title="Voltar" variant="ghost" onPress={() => setStep(0)} testID="book-service-back" style={{ flex: 1 }} />
+              <Button title="Continuar" onPress={() => setStep(2)} disabled={!procedure || !professionalId || (relevantServices.length > 0 && !serviceId)} testID="step1-next" style={{ flex: 1 }} />
+            </View>
           </View>
         )}
 
@@ -165,7 +185,7 @@ export default function Booking() {
           </View>
         )}
 
-        {step === 3 && (
+        {step === 3 && area && (
           <View>
             <Text style={styles.stepTitle}>Confirmar</Text>
             <Card style={{ marginBottom: spacing.lg }}>

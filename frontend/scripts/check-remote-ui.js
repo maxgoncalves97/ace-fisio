@@ -1,3 +1,4 @@
+/* global __dirname */
 // Read-only browser smoke checks; no trace, screenshot or credential output.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -28,8 +29,24 @@ const baseURL = 'https://ace-fisio-partner-demo.onrender.com';
           await expect(page.getByTestId('login-email-input')).toHaveCount(0);
           await expect(area === 'admin' ? page.locator('[data-testid^="kpi-"]').first() : page.getByTestId('dashboard-book')).toBeVisible({ timeout: 15000 });
           if (mobile) expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+          if (area === 'patient') {
+            await page.goto('/patient/booking');
+            await expect(page.getByText('O que você deseja agendar?')).toBeVisible();
+            await expect(page.locator('[data-testid^="book-proc-"]')).toHaveCount(0);
+            for (const kind of ['fisio', 'pilates']) {
+              await page.getByTestId(`book-area-${kind}`).click();
+              await page.getByTestId('book-type-next').click();
+              await expect(page.getByTestId('book-professional')).toBeVisible();
+              await expect(page.locator('[data-testid^="book-proc-"]').first()).toBeVisible();
+              if (kind === 'fisio') await page.getByTestId('book-service-back').click();
+            }
+          }
+          await page.getByTestId(mobile ? 'header-logout' : 'sidebar-logout').click();
+          await expect(page).toHaveURL(/\/login$/);
+          await page.goto(`/${area}/dashboard`);
+          await expect(page).toHaveURL(/\/login$/);
           expect(errors).toEqual([]);
-          console.log(`PASS: public ${mobile ? 'mobile' : 'desktop'} ${area} login, dashboard and session reload`);
+          console.log(`PASS: public ${mobile ? 'mobile' : 'desktop'} ${area} login, dashboard, session reload, logout${area === 'patient' ? ' and both booking types' : ''}`);
         } finally {
           await context.close();
         }

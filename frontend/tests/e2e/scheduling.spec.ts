@@ -24,6 +24,8 @@ async function agendaDay(page: Page, date: string) {
 async function bookThroughPatientUI(page: Page, patient: {email: string}, professionalId: string, plan: {date: string; time: string}, confirm = true) {
   await login(page, patient.email);
   await nav(page, 'booking');
+  await page.getByTestId('book-area-fisio').click();
+  await page.getByTestId('book-type-next').click();
   await page.locator('[data-testid^="book-proc-"]').first().click();
   await select(page, 'book-professional', professionalId);
   await page.getByTestId('step1-next').click();
@@ -56,6 +58,38 @@ test('SCHED-01 patient books available slot, persists in both roles and cancels'
   await page.reload();
   await expect(page.getByTestId(`cancel-${appointment.id}`)).toHaveCount(0);
   await expect(page.getByText('Cancelado', { exact: true })).toBeVisible();
+});
+
+test('SCHED-05 booking asks for type first and filters services when switching areas', async ({ page, clinic }) => {
+  const patient = await clinic.createPatient();
+  const services: Record<string, {id: string; name: string}> = {};
+  for (const area of ['fisio', 'pilates']) {
+    const response = await clinic.admin.post(API + '/professional-services', { data: {
+      name: `E2E-${clinic.unique}-${area}`, area, duration_min: 45, price_cents: area === 'fisio' ? 12500 : 8000,
+    } });
+    expect(response.ok()).toBeTruthy();
+    services[area] = await response.json(); clinic.trackService(services[area]);
+  }
+  await login(page, patient.email);
+  await nav(page, 'booking');
+  await expect(page.getByText('O que você deseja agendar?')).toBeVisible();
+  await expect(page.locator('[data-testid^="book-proc-"]')).toHaveCount(0);
+  for (const area of ['fisio', 'pilates']) {
+    await page.getByTestId(`book-area-${area}`).click();
+    await page.getByTestId('book-type-next').click();
+    await expect(page.getByTestId('book-professional')).toContainText('Selecione o profissional');
+    const procedures = await (await clinic.admin.get(API + '/procedures')).json();
+    for (const procedure of procedures) {
+      await expect(page.getByTestId(`book-proc-${procedure.id}`)).toHaveCount(procedure.area === area || procedure.area === 'ambos' ? 1 : 0);
+    }
+    await select(page, 'book-professional', clinic.professionalId);
+    await page.getByTestId('book-service').click();
+    await expect(page.getByTestId(`book-service-option-${services[area].id}`)).toBeVisible();
+    await expect(page.getByTestId(`book-service-option-${services[area === 'fisio' ? 'pilates' : 'fisio'].id}`)).toHaveCount(0);
+    await page.getByTestId(`book-service-option-${services[area].id}`).click();
+    await expect(page.getByTestId('book-service')).toContainText(services[area].name);
+    if (area === 'fisio') await page.getByTestId('book-service-back').click();
+  }
 });
 
 test('SCHED-02 stale slot is rejected with visible error and no duplicate booking', async ({ page, clinic }) => {

@@ -126,6 +126,10 @@ export function AppShell({
             {subtitle ? <Text style={styles.headerSubtitle} numberOfLines={1}>{subtitle}</Text> : null}
           </View>
           {headerRight}
+          <Pressable testID="header-logout" accessibilityRole="button" accessibilityLabel="Sair da conta" onPress={signOut} style={styles.mobileLogout}>
+            <Feather name="log-out" size={18} color={colors.brandPrimary} />
+            <Text style={styles.mobileLogoutText}>Sair</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
 
@@ -157,6 +161,8 @@ export function AppShell({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surface },
+  mobileLogout: { minHeight: 44, paddingHorizontal: spacing.sm, flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  mobileLogoutText: { fontSize: 14, fontWeight: "600", color: colors.brandPrimary },
   headerSafe: { backgroundColor: colors.surfaceSecondary, borderBottomWidth: 1, borderBottomColor: colors.border },
   mobileHeader: {
     flexDirection: "row",

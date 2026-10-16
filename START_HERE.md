@@ -138,8 +138,9 @@ npm --prefix frontend run test:all
 ```
 
 This runs the local suite: 17 scheduling unit tests, 36 live backend checks and
-26 desktop/mobile browser checks (79 total). That full suite previously passed;
-it was not rerun against the hosted partner database. It creates synthetic test
+30 desktop/mobile browser checks (83 total). The earlier 79-case full suite passed;
+the expanded browser suite adds direct patient logout and booking-type filtering.
+The full suite is not run against the hosted partner database. It creates synthetic test
 fixtures in the separate local test database. Backend checks need Atlas access
 and the browser checks use installed Google Chrome through Playwright.
 
@@ -164,6 +165,12 @@ after refresh. Phone layouts had no horizontal overflow. Actual physical-phone
 and iPhone Safari testing is still for you and your partners to perform.
 
 ## Deploy later changes without changing this setup
+
+The phone header includes **Sair** to log out from any signed-in page. Desktop
+logout remains in the sidebar. Patient booking starts with **Fisioterapia** or
+**Aula de Pilates**, then shows corresponding procedures, professionals and
+services before selecting a date/time. Returning to change the type clears
+earlier selections. Refresh/reopen the site after a deployment to load changes.
 
 1. Continue on `deploy/free-render-partner-demo`; edit, verify, commit and push
    intended changes to that branch. Do not publish private `.env` files.

@@ -32,3 +32,14 @@ test('AUTH-02 patient cannot open admin UI or another patient/private record', a
   expect((await api.get(API + `/patients/${own.id}`)).ok()).toBeTruthy();
   await expect(page.getByText(other.name, { exact: true })).toHaveCount(0);
 });
+
+test('AUTH-03 patient can log out directly and protected pages require login again', async ({ page, clinic }) => {
+  const patient = await clinic.createPatient();
+  await login(page, patient.email);
+  const wide = (page.viewportSize()?.width || 0) >= 900;
+  await page.getByTestId(wide ? 'sidebar-logout' : 'header-logout').click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.reload();
+  await page.goto('/patient/booking');
+  await expect(page).toHaveURL(/\/login$/);
+});
